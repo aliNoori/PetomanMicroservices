@@ -1,0 +1,19 @@
+{
+  "name": "@petoman/security",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.2.1",
+    "@nestjs/jwt": "^11.0.0",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6"
+  }
+}

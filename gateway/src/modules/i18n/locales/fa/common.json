@@ -1,0 +1,18 @@
+{
+  "errors": {
+    "AUTH_INVALID_CREDENTIALS": "اطلاعات ورود نامعتبر است.",
+    "AUTH_TOKEN_EXPIRED": "توکن احراز هویت منقضی شده است.",
+    "AUTH_TOKEN_INVALID": "توکن احراز هویت نامعتبر است.",
+    "AUTH_UNAUTHORIZED": "احراز هویت الزامی است.",
+    "AUTH_FORBIDDEN": "شما اجازه انجام این عملیات را ندارید.",
+
+    "BAD_REQUEST": "درخواست نامعتبر است.",
+    "NOT_FOUND": "منبع موردنظر پیدا نشد.",
+    "CONFLICT": "وضعیت درخواست با وضعیت فعلی منبع در تعارض است.",
+    "VALIDATION_ERROR": "اعتبارسنجی درخواست ناموفق بود.",
+
+    "SERVICE_UNAVAILABLE": "سرویس مقصد در دسترس نیست.",
+    "SERVICE_TIMEOUT": "زمان پاسخ‌گویی سرویس مقصد به پایان رسید.",
+    "INTERNAL_SERVER_ERROR": "خطای داخلی سرور."
+  }
+}

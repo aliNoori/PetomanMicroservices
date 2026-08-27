@@ -1,0 +1,29 @@
+{
+  "errors": {
+    "AUTH_BAD_REQUEST": "درخواست نامعتبر است.",
+    "AUTH_UNAUTHORIZED": "احراز هویت الزامی است.",
+    "AUTH_FORBIDDEN": "شما اجازه انجام این عملیات را ندارید.",
+    "AUTH_NOT_FOUND": "منبع موردنظر پیدا نشد.",
+    "AUTH_CONFLICT": "منبع موردنظر با وضعیت فعلی در تعارض است.",
+    "AUTH_VALIDATION_ERROR": "اطلاعات ارسال‌شده نامعتبر است.",
+    "AUTH_INTERNAL_SERVER_ERROR": "خطای داخلی سرور رخ داده است.",
+
+    "AUTH_INVALID_CREDENTIALS": "ایمیل یا رمز عبور نامعتبر است.",
+    "AUTH_USER_NOT_FOUND": "کاربر پیدا نشد.",
+    "AUTH_USER_INACTIVE": "حساب کاربری غیرفعال است.",
+    "AUTH_EMAIL_ALREADY_EXISTS": "کاربری با این ایمیل قبلاً وجود دارد.",
+
+    "AUTH_TENANT_NOT_FOUND": "Tenant پیدا نشد.",
+    "AUTH_TENANT_INACTIVE": "Tenant غیرفعال است.",
+    "AUTH_TENANT_CONTEXT_REQUIRED": "زمینه Tenant الزامی است.",
+    "AUTH_TENANT_MEMBERSHIP_REQUIRED": "عضویت فعال در Tenant الزامی است.",
+    "AUTH_TENANT_MEMBERSHIP_NOT_FOUND": "عضویت Tenant پیدا نشد.",
+    "AUTH_TENANT_MEMBERSHIP_ALREADY_ACTIVE": "این عضویت Tenant قبلاً فعال شده است.",
+    "AUTH_TENANT_MEMBERSHIP_ALREADY_PENDING": "یک درخواست عضویت در حالت انتظار از قبل وجود دارد.",
+    "AUTH_TENANT_MEMBERSHIP_INVALID_STATUS": "وضعیت عضویت برای انجام این عملیات معتبر نیست.",
+    "AUTH_TENANT_SCOPE_FORBIDDEN": "شما به این Tenant دسترسی ندارید.",
+    "AUTH_TENANT_SLUG_ALREADY_EXISTS": "Tenant دیگری با این slug از قبل وجود دارد.",
+
+    "AUTH_ROLE_NOT_FOUND": "نقش پیدا نشد."
+  }
+}

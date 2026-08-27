@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Build
+dist/
+build/
+coverage/
+
+# Logs
+*.log
+logs/
+
+# Runtime
+.tmp/
+temp/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.nyc_output/
+
+# TypeScript
+*.tsbuildinfo
+
+# Private keys
+**/keys/private.pem
+**/keys/*.key

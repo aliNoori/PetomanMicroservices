@@ -1,0 +1,18 @@
+{
+  "errors": {
+    "AUTH_INVALID_CREDENTIALS": "Invalid credentials.",
+    "AUTH_TOKEN_EXPIRED": "Authentication token has expired.",
+    "AUTH_TOKEN_INVALID": "Authentication token is invalid.",
+    "AUTH_UNAUTHORIZED": "Authentication required.",
+    "AUTH_FORBIDDEN": "You do not have permission to perform this action.",
+
+    "BAD_REQUEST": "The request is invalid.",
+    "NOT_FOUND": "The requested resource was not found.",
+    "CONFLICT": "The requested resource conflicts with the current state.",
+    "VALIDATION_ERROR": "The request validation failed.",
+
+    "SERVICE_UNAVAILABLE": "The downstream service is unavailable.",
+    "SERVICE_TIMEOUT": "The downstream service timed out.",
+    "INTERNAL_SERVER_ERROR": "Internal server error."
+  }
+}

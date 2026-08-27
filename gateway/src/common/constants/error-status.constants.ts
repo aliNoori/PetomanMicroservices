@@ -1,0 +1,51 @@
+import {
+  HttpStatus,
+} from '@nestjs/common';
+
+import {
+  ERROR_CODES,
+  ErrorCode,
+} from './error-code.constants';
+
+export const ERROR_HTTP_STATUS: Readonly<
+  Record<ErrorCode, HttpStatus>
+> = {
+  // Authentication
+  [ERROR_CODES.AUTH_INVALID_CREDENTIALS]:
+    HttpStatus.UNAUTHORIZED,
+
+  [ERROR_CODES.AUTH_TOKEN_EXPIRED]:
+    HttpStatus.UNAUTHORIZED,
+
+  [ERROR_CODES.AUTH_TOKEN_INVALID]:
+    HttpStatus.UNAUTHORIZED,
+
+  [ERROR_CODES.AUTH_UNAUTHORIZED]:
+    HttpStatus.UNAUTHORIZED,
+
+  [ERROR_CODES.AUTH_FORBIDDEN]:
+    HttpStatus.FORBIDDEN,
+
+  // Common HTTP errors
+  [ERROR_CODES.BAD_REQUEST]:
+    HttpStatus.BAD_REQUEST,
+
+  [ERROR_CODES.NOT_FOUND]:
+    HttpStatus.NOT_FOUND,
+
+  [ERROR_CODES.CONFLICT]:
+    HttpStatus.CONFLICT,
+
+  [ERROR_CODES.VALIDATION_ERROR]:
+    HttpStatus.UNPROCESSABLE_ENTITY,
+
+  // Gateway / infrastructure
+  [ERROR_CODES.SERVICE_UNAVAILABLE]:
+    HttpStatus.SERVICE_UNAVAILABLE,
+
+  [ERROR_CODES.SERVICE_TIMEOUT]:
+    HttpStatus.GATEWAY_TIMEOUT,
+
+  [ERROR_CODES.INTERNAL_SERVER_ERROR]:
+    HttpStatus.INTERNAL_SERVER_ERROR,
+};
