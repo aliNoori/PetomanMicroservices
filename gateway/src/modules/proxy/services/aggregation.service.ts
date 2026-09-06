@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   GatewayTimeoutException,
   Injectable,
   InternalServerErrorException,
@@ -13,7 +14,11 @@ import { HttpService } from '@nestjs/axios';
 
 import { firstValueFrom } from 'rxjs';
 
-import type { AuthenticatedRequest } from '@petoman/security';
+import {
+  type AuthenticatedRequest,
+  InternalJwtOptions,
+  InternalJwtService,
+} from '@petoman/security';
 
 import {
   SERVICE_NAMES,
@@ -21,6 +26,8 @@ import {
 } from '../constants/service-route.constants';
 
 import { ERROR_CODES } from '@petoman/security';
+import { TenantResolverService } from './tenant-resolver.service';
+import { ConfigurationService } from '../../../config/configuration.service';
 
 /**
  * Runtime context passed to an aggregation handler.
@@ -84,8 +91,10 @@ export interface AggregationContext {
 export class AggregationService {
   constructor(
     private readonly httpService: HttpService,
-
     private readonly configService: ConfigService,
+    private readonly tenantResolverService: TenantResolverService,
+    private readonly internalJwtService: InternalJwtService,
+    private readonly configurationService: ConfigurationService,
   ) {}
 
   /**
@@ -109,6 +118,9 @@ export class AggregationService {
 
       case 'DASHBOARD':
         return this.aggregateDashboard(context);
+
+      case 'MARKET_PRODUCTS':
+        return this.aggregateMarketProducts(context);
 
       default:
         throw new Error(`Unknown aggregation handler: ${handler}`);
@@ -250,6 +262,76 @@ export class AggregationService {
     return {
       message: 'Dashboard aggregation',
     };
+  }
+
+  private async aggregateMarketProducts(
+    context: AggregationContext,
+  ): Promise<unknown> {
+    const storeSlug = context.query.storeSlug;
+
+    if (typeof storeSlug !== 'string' || !storeSlug.trim()) {
+      throw new BadRequestException({
+        code: ERROR_CODES.BAD_REQUEST,
+      });
+    }
+
+    try {
+      /**
+       * Resolve the tenant from Auth using the public store slug.
+       */
+      const tenant = await this.tenantResolverService.resolveBySlug(
+        storeSlug.trim(),
+      );
+
+      /**
+       * Create an internal JWT scoped to the resolved tenant.
+       *
+       * The user JWT is intentionally NOT forwarded to Market.
+       */
+      const marketJwtOptions: InternalJwtOptions = {
+        secret: this.configurationService.internalJwt.secret,
+        issuer: this.configurationService.internalJwt.issuer,
+        audience: this.configurationService.internalJwt.marketAudience,
+        expiresInSeconds:
+          this.configurationService.internalJwt.expiresInSeconds,
+      };
+
+      const internalToken = this.internalJwtService.signTenantToken(
+        tenant.tenantId,
+        marketJwtOptions,
+      );
+
+      /**
+       * Resolve Market service configuration.
+       */
+      const marketService = this.getServiceConfig(SERVICE_NAMES.MARKET);
+
+      /**
+       * Request products from Market using the
+       * Gateway-generated internal JWT.
+       */
+      const productsResponse = await firstValueFrom(
+        this.httpService.get(
+          this.buildDownstreamUrl(marketService, '/api/products'),
+          {
+            timeout: marketService.timeoutMs,
+            headers: {
+              Authorization: `Bearer ${internalToken}`,
+              Accept: 'application/json',
+            },
+          },
+        ),
+      );
+
+      /**
+       * Return the downstream payload without
+       * leaking the internal authentication details.
+       */
+      return productsResponse.data.data;
+    } catch (error: unknown) {
+      console.error('MARKET_PRODUCTS AGGREGATION ERROR:', error);
+      throw this.translateDownstreamError(error);
+    }
   }
 
   /**

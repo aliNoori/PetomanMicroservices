@@ -4,18 +4,18 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { DataSource } from 'typeorm';
 
-import { AppModule } from './../src/app.module';
+import { AppModule } from '../../../src/app.module';
 
-import { UserEntity } from '../src/modules/auth/entities/user.entity';
-import { TenantEntity } from '../src/modules/auth/entities/tenant.entity';
-import { TenantUserEntity } from '../src/modules/auth/entities/tenant-user.entity';
-import { UserRoleEntity } from '../src/modules/auth/entities/user-role.entity';
-import { RoleEntity } from '../src/modules/auth/entities/role.entity';
+import { UserEntity } from '../../../src/modules/auth/entities/user.entity';
+import { TenantEntity } from '../../../src/modules/auth/entities/tenant.entity';
+import { TenantUserEntity } from '../../../src/modules/auth/entities/tenant-user.entity';
+import { UserRoleEntity } from '../../../src/modules/auth/entities/user-role.entity';
+import { RoleEntity } from '../../../src/modules/auth/entities/role.entity';
 
 import {
   AuthE2ESeedHelper,
   E2E_AUTH_DATA,
-} from './helpers/auth-e2e-seed.helper';
+} from '../../helpers/auth-e2e-seed.helper';
 
 
 describe('Auth Role Authorization (e2e)', () => {

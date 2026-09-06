@@ -8,6 +8,7 @@ use Firebase\JWT\Key;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
+use App\Auth\AuthContext;
 
 class VerifyJwt
 {
@@ -15,9 +16,11 @@ class VerifyJwt
         Request $request,
         Closure $next,
     ): Response {
+        $authorization = $request->header('Authorization');
 
-        $authorization =
-            $request->header('Authorization');
+        // ============================================================
+        // Authorization Header
+        // ============================================================
 
         if (!$authorization) {
             return response()->json([
@@ -48,6 +51,10 @@ class VerifyJwt
         $token = $matches[1];
 
         try {
+            // ========================================================
+            // Public Key
+            // ========================================================
+
             $publicKey = file_get_contents(
                 base_path('keys/public.pem'),
             );
@@ -58,16 +65,28 @@ class VerifyJwt
                 );
             }
 
+            // ========================================================
+            // JWT Verification
+            // ========================================================
+
             $payload = JWT::decode(
                 $token,
                 new Key($publicKey, 'RS256'),
             );
+
+            // ========================================================
+            // Issuer
+            // ========================================================
 
             if (($payload->iss ?? null) !== 'petoman-auth') {
                 throw new \RuntimeException(
                     'Invalid issuer.',
                 );
             }
+
+            // ========================================================
+            // Audience
+            // ========================================================
 
             $audience = $payload->aud ?? null;
 
@@ -87,20 +106,92 @@ class VerifyJwt
                 );
             }
 
-            $request->attributes->set(
-                'jwt',
-                $payload,
+            // ========================================================
+            // Required Subject
+            // ========================================================
+
+            $userId = $payload->sub ?? null;
+
+            if (!is_string($userId) || $userId === '') {
+                throw new \RuntimeException(
+                    'Invalid subject.',
+                );
+            }
+
+            // ========================================================
+            // Tenant Context
+            //
+            // Login token:
+            // tenantId = null
+            //
+            // Selected-tenant token:
+            // tenantId = selected tenant UUID
+            // ========================================================
+
+            $tenantId = $payload->tenantId ?? null;
+
+            if ($tenantId !== null && !is_string($tenantId)) {
+                throw new \RuntimeException(
+                    'Invalid tenant context.',
+                );
+            }
+
+            // ========================================================
+            // Roles
+            // ========================================================
+
+            $roles = $payload->roles ?? [];
+
+            if (!is_array($roles)) {
+                throw new \RuntimeException(
+                    'Invalid roles claim.',
+                );
+            }
+
+            // ========================================================
+            // Permissions
+            // ========================================================
+
+            $permissions = $payload->permissions ?? [];
+
+            if (!is_array($permissions)) {
+                throw new \RuntimeException(
+                    'Invalid permissions claim.',
+                );
+            }
+
+            // ========================================================
+            // Email
+            // ========================================================
+
+            $email = $payload->email ?? null;
+
+            if ($email !== null && !is_string($email)) {
+                throw new \RuntimeException(
+                    'Invalid email claim.',
+                );
+            }
+
+            // ========================================================
+// Request Authentication Context
+// ========================================================
+
+            $authContext = new AuthContext(
+                userId: $userId,
+                tenantId: $tenantId,
+                email: $email ?? '',
+                roles: $roles,
+                permissions: $permissions,
             );
 
             $request->attributes->set(
-                'user_id',
-                $payload->sub ?? null,
+                'auth',
+                $authContext,
             );
 
             return $next($request);
 
         } catch (Throwable) {
-
             return response()->json([
                 'success' => false,
                 'error' => [

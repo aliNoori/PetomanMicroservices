@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  NotFoundException,
   Param,
   Patch,
   Post,
@@ -11,10 +12,12 @@ import {
 } from '@nestjs/common';
 
 import {
+  InternalJwtGuard,
   JwtAuthGuard,
   PermissionsGuard,
   RequirePermissions,
   type AuthenticatedRequest,
+  type InternalAuthenticatedRequest,
 } from '@petoman/security';
 
 import { TenantService } from './tenant.service';
@@ -23,63 +26,91 @@ import { CreateTenantDto } from './dtos/create-tenant.dto';
 import { PERMISSION_SLUGS } from '../../common/constants/permissions.constants';
 import { UpdateTenantDto } from './dtos/update-tenant.dto';
 
-@UseGuards(JwtAuthGuard)
 @Controller('tenants')
 export class TenantController {
   constructor(private readonly tenantService: TenantService) {}
 
-  // ============================================================
-  // Create Tenant
-  // ============================================================
-
+  @UseGuards(InternalJwtGuard)
   @Post()
   createTenant(
     @Body() dto: CreateTenantDto,
-    @Req() request: AuthenticatedRequest,
+    @Req() request: InternalAuthenticatedRequest,
   ) {
-    const user = request.user;
+    const userId = request.internalAuth?.userId;
 
-    if (!user) {
+    if (!userId) {
       throw new UnauthorizedException({
-        message: 'Authenticated user context is missing.',
+        message: 'Authenticated user identity is missing.',
       });
     }
 
-    return this.tenantService.createTenant(user.sub, dto);
+    return this.tenantService.createTenant(userId, dto);
   }
 
-  // ============================================================
-  // Get Tenant
-  // ============================================================
-
-  @UseGuards(PermissionsGuard)
-  @RequirePermissions(PERMISSION_SLUGS.TENANT_READ)
+  @UseGuards(InternalJwtGuard)
   @Get(':tenantId')
-  getTenant(@Param('tenantId') tenantId: string) {
-    return this.tenantService.getTenant(tenantId);
+  getTenant(
+    @Param('tenantId') tenantId: string,
+    @Req() request: InternalAuthenticatedRequest,
+  ) {
+    const requester = request.internalAuth;
+
+    if (!requester?.userId) {
+      throw new UnauthorizedException({
+        message: 'Authenticated user identity is missing.',
+      });
+    }
+
+    return this.tenantService.getTenant(requester, tenantId);
   }
 
-  // ============================================================
-  // Update Tenant
-  // ============================================================
-
-  @UseGuards(PermissionsGuard)
-  @RequirePermissions(PERMISSION_SLUGS.TENANT_UPDATE)
+  @UseGuards(InternalJwtGuard)
   @Patch(':tenantId')
   updateTenant(
     @Param('tenantId') tenantId: string,
     @Body() dto: UpdateTenantDto,
+    @Req() request: InternalAuthenticatedRequest,
   ) {
-    return this.tenantService.updateTenant(tenantId, dto);
+    const requester = request.internalAuth;
+
+    if (!requester?.userId) {
+      throw new UnauthorizedException({
+        message: 'Authenticated user identity is missing.',
+      });
+    }
+
+    return this.tenantService.updateTenant(requester, tenantId, dto);
   }
 
-  @UseGuards(PermissionsGuard)
-  @RequirePermissions(PERMISSION_SLUGS.TENANT_MEMBERSHIP_READ)
+  @UseGuards(InternalJwtGuard)
   @Get(':tenantId/memberships')
   getTenantMemberships(
     @Param('tenantId') tenantId: string,
-    @Req() request: AuthenticatedRequest,
+    @Req() request: InternalAuthenticatedRequest,
   ) {
-    return this.tenantService.getTenantMemberships(request.user, tenantId);
+    const requester = request.internalAuth;
+
+    if (!requester?.userId) {
+      throw new UnauthorizedException({
+        message: 'Authenticated user identity is missing.',
+      });
+    }
+
+    return this.tenantService.getTenantMemberships(requester, tenantId);
+  }
+
+  @UseGuards(InternalJwtGuard)
+  @Get('/by-slug/:storeSlug')
+  async findBySlug(@Param('storeSlug') storeSlug: string) {
+    const tenant = await this.tenantService.findBySlug(storeSlug);
+
+    if (!tenant) {
+      throw new NotFoundException('Tenant not found.');
+    }
+
+    return {
+      id: tenant.id,
+      status: tenant.status,
+    };
   }
 }

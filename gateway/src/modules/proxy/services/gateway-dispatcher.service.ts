@@ -10,6 +10,10 @@ import { ProxyHeaderService } from './proxy-header.service';
 
 import { RouteResolverService } from './route-resolver.service';
 
+import { GatewayDownstreamAuthService } from '../../../common/authentication/gateway-downstream-auth.service';
+
+import { GatewayAuthorizationService } from '../../../common/authorization/gateway-authorization.service';
+
 import {
   GatewayRouteType,
   GatewayRouteMatch,
@@ -52,6 +56,10 @@ export class GatewayDispatcherService {
     private readonly proxyHeaderService: ProxyHeaderService,
 
     private readonly gatewayAuthGuard: GatewayAuthGuard,
+
+    private readonly gatewayAuthorizationService: GatewayAuthorizationService,
+
+    private readonly gatewayDownstreamAuthService: GatewayDownstreamAuthService,
   ) {}
 
   /**
@@ -62,6 +70,8 @@ export class GatewayDispatcherService {
 
     if (routeMatch.route.auth === GatewayAuthMode.JWT) {
       this.gatewayAuthGuard.authenticate(request);
+
+      this.gatewayAuthorizationService.authorize(request, routeMatch.route);
     }
 
     switch (routeMatch.route.type) {
@@ -89,7 +99,17 @@ export class GatewayDispatcherService {
   ): Promise<unknown> {
     const downstreamPath = this.routeResolver.getDownstreamPath(routeMatch);
 
-    const headers = this.proxyHeaderService.getForwardHeaders(request);
+    const authorization =
+      this.gatewayDownstreamAuthService.createAuthorizationHeader(
+        route.target,
+        route.auth,
+        request,
+      );
+
+    const headers = this.proxyHeaderService.getForwardHeaders(
+      request,
+      authorization,
+    );
 
     return this.proxyService.forward(
       route,

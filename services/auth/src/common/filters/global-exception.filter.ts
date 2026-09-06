@@ -53,6 +53,8 @@ export class GlobalExceptionFilter
     const response =
       context.getResponse<Response>();
 
+      console.error('GLOBAL EXCEPTION:', exception);
+
     // ============================================================
     // Map Exception
     // ============================================================

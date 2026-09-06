@@ -4,7 +4,10 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",
@@ -14,6 +17,11 @@
     "jsonwebtoken": "^9.0.0"
   },
   "devDependencies": {
-    "@types/express": "^5.0.6"
+    "@jest/globals": "^30.4.1",
+    "@types/express": "^5.0.6",
+    "@types/jest": "^30.0.0",
+    "@types/jsonwebtoken": "^9.0.10",
+    "jest": "^30.0.0",
+    "ts-jest": "^29.2.5"
   }
 }

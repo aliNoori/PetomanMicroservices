@@ -19,8 +19,7 @@ const PERMISSIONS = [
   {
     slug: 'user.read',
     name: 'Read User',
-    description:
-      'Allows reading user identity and authorization information.',
+    description: 'Allows reading user identity and authorization information.',
   },
 
   // ============================================================
@@ -30,22 +29,19 @@ const PERMISSIONS = [
   {
     slug: 'tenant.read',
     name: 'Read Tenant',
-    description:
-      'Allows reading tenant information.',
+    description: 'Allows reading tenant information.',
   },
 
   {
     slug: 'tenant.update',
     name: 'Update Tenant',
-    description:
-      'Allows updating tenant information.',
+    description: 'Allows updating tenant information.',
   },
 
   {
     slug: 'tenant.approve',
     name: 'Approve Tenant',
-    description:
-      'Allows approving a pending tenant.',
+    description: 'Allows approving a pending tenant.',
   },
 
   // ============================================================
@@ -55,29 +51,25 @@ const PERMISSIONS = [
   {
     slug: 'tenant.membership.request',
     name: 'Request Tenant Membership',
-    description:
-      'Allows requesting membership in a tenant.',
+    description: 'Allows requesting membership in a tenant.',
   },
 
   {
     slug: 'tenant.membership.read',
     name: 'Read Tenant Membership',
-    description:
-      'Allows reading tenant membership information.',
+    description: 'Allows reading tenant membership information.',
   },
 
   {
     slug: 'tenant.membership.approve',
     name: 'Approve Tenant Membership',
-    description:
-      'Allows approving a pending tenant membership.',
+    description: 'Allows approving a pending tenant membership.',
   },
 
   {
     slug: 'tenant.membership.reject',
     name: 'Reject Tenant Membership',
-    description:
-      'Allows rejecting a pending tenant membership.',
+    description: 'Allows rejecting a pending tenant membership.',
   },
 
   // ============================================================
@@ -87,55 +79,69 @@ const PERMISSIONS = [
   {
     slug: 'tenant.role.read',
     name: 'Read Tenant Roles',
-    description:
-      'Allows reading tenant roles.',
+    description: 'Allows reading tenant roles.',
   },
 
   {
     slug: 'tenant.role.assign',
     name: 'Assign Tenant Role',
-    description:
-      'Allows assigning a role to a tenant member.',
+    description: 'Allows assigning a role to a tenant member.',
   },
 
   {
     slug: 'tenant.role.remove',
     name: 'Remove Tenant Role',
-    description:
-      'Allows removing a role from a tenant member.',
+    description: 'Allows removing a role from a tenant member.',
+  },
+
+  // ============================================================
+  // Product
+  // ============================================================
+
+  {
+    slug: 'product.read',
+    name: 'Read Product',
+    description: 'Allows reading products within the current tenant.',
+  },
+
+  {
+    slug: 'product.create',
+    name: 'Create Product',
+    description: 'Allows creating products within the current tenant.',
+  },
+
+  {
+    slug: 'product.update',
+    name: 'Update Product',
+    description: 'Allows updating products within the current tenant.',
+  },
+
+  {
+    slug: 'product.delete',
+    name: 'Delete Product',
+    description: 'Allows deleting products within the current tenant.',
   },
 ] as const;
 
 const SUPER_ADMIN = {
   slug: ROLE_SLUGS.SUPER_ADMIN,
   name: 'Super Admin',
-  description:
-    'System-wide administrator with access across all tenants.',
+  description: 'System-wide administrator with access across all tenants.',
 };
 
 async function seed(): Promise<void> {
-  const dataSourceInstance: DataSource =
-    await dataSource.initialize();
+  const dataSourceInstance: DataSource = await dataSource.initialize();
 
   try {
     const permissionRepository =
-      dataSourceInstance.getRepository(
-        PermissionEntity,
-      );
+      dataSourceInstance.getRepository(PermissionEntity);
 
-    const roleRepository =
-      dataSourceInstance.getRepository(
-        RoleEntity,
-      );
+    const roleRepository = dataSourceInstance.getRepository(RoleEntity);
 
     const rolePermissionRepository =
-      dataSourceInstance.getRepository(
-        RolePermissionEntity,
-      );
+      dataSourceInstance.getRepository(RolePermissionEntity);
 
-    console.log(
-      'Starting auth security seed...',
-    );
+    console.log('Starting auth security seed...');
 
     // ============================================================
     // 1. Seed Permissions
@@ -144,34 +150,24 @@ async function seed(): Promise<void> {
     const permissions: PermissionEntity[] = [];
 
     for (const permissionData of PERMISSIONS) {
-      let permission =
-        await permissionRepository.findOne({
-          where: {
-            slug: permissionData.slug,
-          },
-        });
+      let permission = await permissionRepository.findOne({
+        where: {
+          slug: permissionData.slug,
+        },
+      });
 
       if (!permission) {
-        permission =
-          permissionRepository.create({
-            slug: permissionData.slug,
-            name: permissionData.name,
-            description:
-              permissionData.description,
-          });
+        permission = permissionRepository.create({
+          slug: permissionData.slug,
+          name: permissionData.name,
+          description: permissionData.description,
+        });
 
-        permission =
-          await permissionRepository.save(
-            permission,
-          );
+        permission = await permissionRepository.save(permission);
 
-        console.log(
-          `Created permission: ${permission.slug}`,
-        );
+        console.log(`Created permission: ${permission.slug}`);
       } else {
-        console.log(
-          `Permission already exists: ${permission.slug}`,
-        );
+        console.log(`Permission already exists: ${permission.slug}`);
       }
 
       permissions.push(permission);
@@ -181,37 +177,27 @@ async function seed(): Promise<void> {
     // 2. Seed SUPER_ADMIN System Role
     // ============================================================
 
-    let superAdminRole =
-      await roleRepository.findOne({
-        where: {
-          slug: SUPER_ADMIN.slug,
-          isSystem: true,
-        },
-      });
+    let superAdminRole = await roleRepository.findOne({
+      where: {
+        slug: SUPER_ADMIN.slug,
+        isSystem: true,
+      },
+    });
 
     if (!superAdminRole) {
-      superAdminRole =
-        roleRepository.create({
-          tenantId: null,
-          name: SUPER_ADMIN.name,
-          slug: SUPER_ADMIN.slug,
-          description:
-            SUPER_ADMIN.description,
-          isSystem: true,
-        });
+      superAdminRole = roleRepository.create({
+        tenantId: null,
+        name: SUPER_ADMIN.name,
+        slug: SUPER_ADMIN.slug,
+        description: SUPER_ADMIN.description,
+        isSystem: true,
+      });
 
-      superAdminRole =
-        await roleRepository.save(
-          superAdminRole,
-        );
+      superAdminRole = await roleRepository.save(superAdminRole);
 
-      console.log(
-        `Created role: ${superAdminRole.slug}`,
-      );
+      console.log(`Created role: ${superAdminRole.slug}`);
     } else {
-      console.log(
-        `Role already exists: ${superAdminRole.slug}`,
-      );
+      console.log(`Role already exists: ${superAdminRole.slug}`);
     }
 
     // ============================================================
@@ -219,13 +205,12 @@ async function seed(): Promise<void> {
     // ============================================================
 
     for (const permission of permissions) {
-      const existing =
-        await rolePermissionRepository.findOne({
-          where: {
-            roleId: superAdminRole.id,
-            permissionId: permission.id,
-          },
-        });
+      const existing = await rolePermissionRepository.findOne({
+        where: {
+          roleId: superAdminRole.id,
+          permissionId: permission.id,
+        },
+      });
 
       if (!existing) {
         await rolePermissionRepository.save(
@@ -235,9 +220,7 @@ async function seed(): Promise<void> {
           }),
         );
 
-        console.log(
-          `Assigned ${permission.slug} -> ${superAdminRole.slug}`,
-        );
+        console.log(`Assigned ${permission.slug} -> ${superAdminRole.slug}`);
       } else {
         console.log(
           `Assignment already exists: ${permission.slug} -> ${superAdminRole.slug}`,
@@ -250,32 +233,21 @@ async function seed(): Promise<void> {
     // ============================================================
 
     console.log('');
-    console.log(
-      `Permissions seeded: ${permissions.length}`,
-    );
+    console.log(`Permissions seeded: ${permissions.length}`);
 
-    console.log(
-      `System role: ${superAdminRole.slug}`,
-    );
+    console.log(`System role: ${superAdminRole.slug}`);
 
-    console.log(
-      'SUPER_ADMIN permissions: ALL',
-    );
+    console.log('SUPER_ADMIN permissions: ALL');
 
     console.log('');
-    console.log(
-      'Auth security seed completed successfully.',
-    );
+    console.log('Auth security seed completed successfully.');
   } finally {
     await dataSourceInstance.destroy();
   }
 }
 
 seed().catch((error) => {
-  console.error(
-    'Auth security seed failed:',
-    error,
-  );
+  console.error('Auth security seed failed:', error);
 
   process.exit(1);
 });

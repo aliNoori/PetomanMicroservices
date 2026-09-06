@@ -13,13 +13,14 @@ import { APP_FILTER } from '@nestjs/core';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { ProxyModule } from './modules/proxy/proxy.module';
 import { JwtConfigModule } from './common/security/jwt.config.module';
+import internalJwtConfig from './config/internal-jwt.config';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       cache: true,
-      load: [appConfig, servicesConfig],
+      load: [appConfig, servicesConfig,internalJwtConfig],
       envFilePath: ['.env'],
       validationSchema: Joi.object({
         NODE_ENV: Joi.string()

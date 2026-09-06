@@ -11,6 +11,7 @@ import { HealthModule } from './modules/health/health.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { TenantModule } from './modules/tenant/tenant.module';
 import { AppI18nModule } from './modules/i18n/i18n.module';
+import internalJwtConfig from './config/internal-jwt.config';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { AppI18nModule } from './modules/i18n/i18n.module';
       load: [
         appConfig,
         databaseConfig,
+        internalJwtConfig,
       ],
 
       envFilePath: ['.env'],

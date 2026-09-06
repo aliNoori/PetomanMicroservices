@@ -9,7 +9,12 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, IsNull, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 
-import { JwtPayload, JwtTokenService } from '@petoman/security';
+import {
+  InternalAuthScope,
+  InternalJwtPayload,
+  JwtPayload,
+  JwtTokenService,
+} from '@petoman/security';
 
 import { MEMBERSHIP_STATUS } from '../../common/constants/membership.constants';
 import { TENANT_STATUS } from '../../common/constants/tenant.constants';
@@ -293,25 +298,103 @@ export class AuthService {
   }
 
   // ============================================================
-  // Get User
+  // Profile
   // ============================================================
 
-  async getUser(requester: JwtPayload, targetUserId: string) {
-    const isSuperAdmin = requester.roles.includes(ROLE_SLUGS.SUPER_ADMIN);
+  async getProfile(userId: string) {
+    const user = await this.userRepository.findOne({
+      where: {
+        id: userId,
+      },
+    });
 
-    const isTenantAdmin = requester.roles.includes(ROLE_SLUGS.TENANT_ADMIN);
-
-    if (!isSuperAdmin && !isTenantAdmin) {
-      throw new ForbiddenException({
-        code: AUTH_ERROR_CODES.TENANT_SCOPE_FORBIDDEN,
-        message: 'You are not authorized to inspect users.',
+    if (!user) {
+      throw new NotFoundException({
+        code: AUTH_ERROR_CODES.USER_NOT_FOUND,
+        message: 'User not found.',
       });
     }
 
-    // ==========================================================
-    // Target User
-    // ==========================================================
+    if (!user.isActive) {
+      throw new UnauthorizedException({
+        code: AUTH_ERROR_CODES.USER_INACTIVE,
+        message: 'User account is inactive.',
+      });
+    }
 
+    const memberships = await this.tenantUserRepository.find({
+      where: {
+        userId: user.id,
+      },
+      relations: {
+        tenant: true,
+      },
+      order: {
+        createdAt: 'ASC',
+      },
+    });
+
+    const userRoles = await this.userRoleRepository.find({
+      where: {
+        userId: user.id,
+      },
+      relations: {
+        role: true,
+      },
+    });
+
+    const systemRoles = userRoles
+      .filter(
+        (userRole) =>
+          userRole.tenantId === null && userRole.role.isSystem === true,
+      )
+      .map((userRole) => userRole.role.slug);
+
+    const tenantRoles = userRoles
+      .filter(
+        (userRole) =>
+          userRole.tenantId !== null && userRole.role.isSystem === false,
+      )
+      .map((userRole) => ({
+        tenantId: userRole.tenantId,
+        role: userRole.role.slug,
+      }));
+
+    return {
+      success: true as const,
+      data: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        isActive: user.isActive,
+
+        systemRoles,
+
+        tenantMemberships: memberships.map((membership) => ({
+          membershipId: membership.id,
+          tenantId: membership.tenantId,
+          status: membership.status,
+
+          tenant: {
+            id: membership.tenant.id,
+            name: membership.tenant.name,
+            slug: membership.tenant.slug,
+            status: membership.tenant.status,
+            ownerId: membership.tenant.ownerId,
+          },
+        })),
+
+        tenantRoles,
+      },
+    };
+  }
+
+  // ============================================================
+  // Get User
+  // ============================================================
+
+  async getUser(requester: InternalJwtPayload, targetUserId: string) {
     const user = await this.userRepository.findOne({
       where: {
         id: targetUserId,
@@ -325,13 +408,16 @@ export class AuthService {
       });
     }
 
-    // ==========================================================
-    // Tenant Scope
-    // ==========================================================
+    if (!user.isActive) {
+      throw new UnauthorizedException({
+        code: AUTH_ERROR_CODES.USER_INACTIVE,
+        message: 'User account is inactive.',
+      });
+    }
 
     let memberships;
 
-    if (isSuperAdmin) {
+    if (requester.scope === InternalAuthScope.GLOBAL) {
       memberships = await this.tenantUserRepository.find({
         where: {
           userId: targetUserId,
@@ -363,11 +449,14 @@ export class AuthService {
           createdAt: 'ASC',
         },
       });
-    }
 
-    // ==========================================================
-    // User Roles
-    // ==========================================================
+      if (memberships.length === 0) {
+        throw new NotFoundException({
+          code: AUTH_ERROR_CODES.USER_NOT_FOUND,
+          message: 'User not found.',
+        });
+      }
+    }
 
     const userRoles = await this.userRoleRepository.find({
       where: {
@@ -378,12 +467,15 @@ export class AuthService {
       },
     });
 
-    const systemRoles = userRoles
-      .filter(
-        (userRole) =>
-          userRole.tenantId === null && userRole.role.isSystem === true,
-      )
-      .map((userRole) => userRole.role.slug);
+    const systemRoles =
+      requester.scope === InternalAuthScope.GLOBAL
+        ? userRoles
+            .filter(
+              (userRole) =>
+                userRole.tenantId === null && userRole.role.isSystem === true,
+            )
+            .map((userRole) => userRole.role.slug)
+        : [];
 
     const tenantRoles = userRoles
       .filter((userRole) => {
@@ -391,7 +483,7 @@ export class AuthService {
           return false;
         }
 
-        if (isSuperAdmin) {
+        if (requester.scope === InternalAuthScope.GLOBAL) {
           return true;
         }
 
@@ -402,13 +494,8 @@ export class AuthService {
         role: userRole.role.slug,
       }));
 
-    // ==========================================================
-    // Response
-    // ==========================================================
-
     return {
       success: true as const,
-
       data: {
         id: user.id,
         email: user.email,
@@ -420,20 +507,14 @@ export class AuthService {
 
         tenantMemberships: memberships.map((membership) => ({
           membershipId: membership.id,
-
           tenantId: membership.tenantId,
-
           status: membership.status,
 
           tenant: {
             id: membership.tenant.id,
-
             name: membership.tenant.name,
-
             slug: membership.tenant.slug,
-
             status: membership.tenant.status,
-
             ownerId: membership.tenant.ownerId,
           },
         })),
@@ -507,11 +588,11 @@ export class AuthService {
   // Approve Tenant
   // ============================================================
 
-  async approveTenant(requester: JwtPayload, tenantId: string) {
-    if (!requester.roles.includes(ROLE_SLUGS.SUPER_ADMIN)) {
+  async approveTenant(requester: InternalJwtPayload, tenantId: string) {
+    if (requester.scope !== InternalAuthScope.GLOBAL) {
       throw new ForbiddenException({
-        code: AUTH_ERROR_CODES.TENANT_SCOPE_FORBIDDEN,
-        message: 'Only SUPER_ADMIN can approve a Tenant.',
+        code: AUTH_ERROR_CODES.FORBIDDEN,
+        message: 'Only global administrators can approve tenants.',
       });
     }
 
@@ -887,14 +968,14 @@ export class AuthService {
   // ============================================================
 
   private assertTenantScope(
-    requester: JwtPayload,
+    requester: InternalJwtPayload,
     targetTenantId: string,
   ): void {
-    if (requester.roles.includes(ROLE_SLUGS.SUPER_ADMIN)) {
+    if (requester.scope === InternalAuthScope.GLOBAL) {
       return;
     }
 
-    if (!requester.tenantId) {
+    if (requester.scope !== InternalAuthScope.TENANT || !requester.tenantId) {
       throw new ForbiddenException({
         code: AUTH_ERROR_CODES.TENANT_CONTEXT_REQUIRED,
         message: 'A Tenant context is required for this operation.',
@@ -913,7 +994,10 @@ export class AuthService {
   // Approve Membership
   // ============================================================
 
-  async approveTenantMembership(requester: JwtPayload, membershipId: string) {
+  async approveTenantMembership(
+    requester: InternalJwtPayload,
+    membershipId: string,
+  ) {
     return this.dataSource.transaction(async (manager) => {
       const membershipRepository = manager.getRepository(TenantUserEntity);
 
@@ -1012,7 +1096,10 @@ export class AuthService {
   // Reject Membership
   // ============================================================
 
-  async rejectTenantMembership(requester: JwtPayload, membershipId: string) {
+  async rejectTenantMembership(
+    requester: InternalJwtPayload,
+    membershipId: string,
+  ) {
     return this.dataSource.transaction(async (manager) => {
       const membershipRepository = manager.getRepository(TenantUserEntity);
 

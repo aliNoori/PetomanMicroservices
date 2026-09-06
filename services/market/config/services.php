@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'internal_jwt' => [
+        'secret' => env('INTERNAL_JWT_SECRET'),
+        'issuer' => env('INTERNAL_JWT_ISSUER'),
+        'audience' => env('INTERNAL_JWT_AUDIENCE'),
+    ],
+
 ];

@@ -1,11 +1,14 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ProductController;
+use App\Http\Middleware\TenantContextMiddleware;
+use App\Http\Middleware\VerifyInternalJwt;
 use App\Http\Middleware\VerifyJwt;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
-| Orders
+| User JWT Protected Routes
 |--------------------------------------------------------------------------
 */
 
@@ -17,8 +20,8 @@ Route::middleware(VerifyJwt::class)->group(function () {
      * Static proxy route.
      */
     Route::get('/orders', function () {
-        Log::info('req',request()->header());
-        //sleep(1);
+        Log::info('req', request()->header());
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -60,62 +63,13 @@ Route::middleware(VerifyJwt::class)->group(function () {
     });
 
     /*
-     * GET /api/products
-     *
-     * Static proxy route.
-     */
-    Route::get('/products', function () {
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'products' => [
-                    [
-                        'id' => 'product-001',
-                        'name' => 'Premium Dog Food',
-                        'price' => 350000,
-                        'stock' => 12,
-                    ],
-                    [
-                        'id' => 'product-002',
-                        'name' => 'Cat Food',
-                        'price' => 280000,
-                        'stock' => 8,
-                    ],
-                ],
-            ],
-        ]);
-    });
-
-    /*
-     * GET /api/products/{productId}
-     *
-     * Parameterized proxy route.
-     */
-    Route::get('/products/{productId}', function (string $productId) {
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'product' => [
-                    'id' => $productId,
-                    'name' => 'Premium Dog Food',
-                    'price' => 350000,
-                    'stock' => 12,
-                ],
-            ],
-        ]);
-    });
-
-    /*
      * GET /api/users/{userId}/orders/{orderId}
      *
      * Multi-parameter proxy route.
      */
     Route::get(
         '/users/{userId}/orders/{orderId}',
-        function (
-            string $userId,
-            string $orderId,
-        ) {
+        function (string $userId, string $orderId) {
             return response()->json([
                 'success' => true,
                 'data' => [
@@ -131,5 +85,59 @@ Route::middleware(VerifyJwt::class)->group(function () {
             ]);
         },
     );
-
 });
+
+
+/*
+|--------------------------------------------------------------------------
+| Internal Gateway Routes
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware([
+    VerifyInternalJwt::class,
+    TenantContextMiddleware::class,
+])->group(function () {
+
+    Route::get(
+        '/products',
+        [ProductController::class, 'index'],
+    );
+
+    Route::get(
+        '/products/{productId}',
+        [ProductController::class, 'show'],
+    );
+
+    Route::post(
+        '/products',
+        [ProductController::class, 'store'],
+    );
+
+    Route::put(
+        '/products/{productId}',
+        [ProductController::class, 'update'],
+    );
+
+    Route::delete(
+        '/products/{productId}',
+        [ProductController::class, 'destroy'],
+    );
+});
+
+
+/*
+|--------------------------------------------------------------------------
+| Public Products
+|--------------------------------------------------------------------------
+|
+| GET /api/public/stores/{storeSlug}/products
+|
+| No authentication required.
+|
+*/
+
+Route::get(
+    '/public/stores/{storeSlug}/products',
+    [ProductController::class, 'publicIndex'],
+);

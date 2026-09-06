@@ -89,10 +89,10 @@ export class ProxyService {
 
       return response.data;
     } catch (error: unknown) {
-      console.error(
-        '[ProxyService] Downstream error:',
-        error,
-      );
+      // console.error(
+      //   '[ProxyService] Downstream error:',
+      //   error,
+      // );
 
       // ========================================================
       // 1. Timeout

@@ -5,9 +5,7 @@ import {
   GatewayTarget,
 } from '../gateway-route.types';
 
-
 export class GatewayRouteFactory {
-
   /**
    * Create a proxy route.
    *
@@ -16,13 +14,7 @@ export class GatewayRouteFactory {
    * `downstreamPath` is the explicit path exposed
    * by the target microservice.
    *
-   * Example:
-   *
-   * Gateway:
-   *   /api/market/orders/:orderId
-   *
-   * Downstream:
-   *   /api/orders/:orderId
+   * `permissions` defines Gateway-level authorization.
    */
   static proxy(
     method: string,
@@ -30,51 +22,38 @@ export class GatewayRouteFactory {
     target: GatewayTarget,
     downstreamPath: string,
     auth: GatewayAuthMode = GatewayAuthMode.JWT,
+    permissions: readonly string[] = [],
   ): GatewayRoute {
-
     return {
-      method:
-        method.toUpperCase(),
-
+      method: method.toUpperCase(),
       path,
-
-      type:
-        GatewayRouteType.PROXY,
-
+      type: GatewayRouteType.PROXY,
       target,
-
       downstreamPath,
-
       auth,
+      permissions,
     };
-
   }
-
 
   /**
    * Create an aggregation route.
+   *
+   * `permissions` defines Gateway-level authorization.
    */
   static aggregation(
     method: string,
     path: string,
     handler: string,
     auth: GatewayAuthMode = GatewayAuthMode.JWT,
+    permissions: readonly string[] = [],
   ): GatewayRoute {
-
     return {
-      method:
-        method.toUpperCase(),
-
+      method: method.toUpperCase(),
       path,
-
-      type:
-        GatewayRouteType.AGGREGATION,
-
+      type: GatewayRouteType.AGGREGATION,
       handler,
-
-      auth
+      auth,
+      permissions,
     };
-
   }
-
 }

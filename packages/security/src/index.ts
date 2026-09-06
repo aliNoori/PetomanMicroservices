@@ -11,3 +11,5 @@ export * from './guards/roles.guard';
 export * from './decorators/require-roles.decorator';
 export * from './guards/permissions.guard';
 export * from './decorators/require-permissions.decorator';
+export * from './internal-jwt/internal-jwt.service';
+export * from './internal-jwt/internal-jwt.guard';

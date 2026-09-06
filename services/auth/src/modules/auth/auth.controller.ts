@@ -10,12 +10,9 @@ import {
 } from '@nestjs/common';
 
 import {
-  JwtAuthGuard,
-  PermissionsGuard,
-  RequirePermissions,
-  RequireRoles,
-  RolesGuard,
+  InternalJwtGuard,
   type AuthenticatedRequest,
+  type InternalAuthenticatedRequest,
 } from '@petoman/security';
 
 import { AuthService } from './auth.service';
@@ -25,8 +22,6 @@ import { LoginDto } from './dtos/login.dto';
 import { SelectTenantDto } from './dtos/select-tenant.dto';
 
 import { AUTH_ERROR_CODES } from '../../common/constants/auth-error-codes.constants';
-import { ROLE_SLUGS } from '../../common/constants/roles.constants';
-import { PERMISSION_SLUGS } from '../../common/constants/permissions.constants';
 
 @Controller('auth')
 export class AuthController {
@@ -56,7 +51,7 @@ export class AuthController {
   // ============================================================
   // Register
   // ============================================================
-
+  @UseGuards(InternalJwtGuard)
   @Post('register')
   register(@Body() dto: RegisterUserDto) {
     return this.authService.register(dto);
@@ -65,7 +60,7 @@ export class AuthController {
   // ============================================================
   // Login
   // ============================================================
-
+  @UseGuards(InternalJwtGuard)
   @Post('login')
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
@@ -75,13 +70,20 @@ export class AuthController {
   // Select Tenant
   // ============================================================
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(InternalJwtGuard)
   @Post('tenant/select')
   selectTenant(
     @Body() dto: SelectTenantDto,
-    @Req() request: AuthenticatedRequest,
+    @Req() request: InternalAuthenticatedRequest,
   ) {
-    const userId = this.getAuthenticatedUserId(request);
+    const userId = request.internalAuth?.userId;
+
+    if (!userId) {
+      throw new UnauthorizedException({
+        code: AUTH_ERROR_CODES.UNAUTHORIZED,
+        message: 'Authenticated user identity is missing.',
+      });
+    }
 
     return this.authService.selectTenant(userId, dto.tenantId);
   }
@@ -90,19 +92,19 @@ export class AuthController {
   // Profile
   // ============================================================
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(InternalJwtGuard)
   @Get('profile')
-  profile(@Req() request: AuthenticatedRequest) {
-    const user = this.getAuthenticatedUser(request);
+  profile(@Req() request: InternalAuthenticatedRequest) {
+    const userId = request.internalAuth?.userId;
 
-    return {
-      success: true as const,
+    if (!userId) {
+      throw new UnauthorizedException({
+        code: AUTH_ERROR_CODES.UNAUTHORIZED,
+        message: 'Authenticated user identity is missing.',
+      });
+    }
 
-      data: {
-        user,
-        userId: user.sub,
-      },
-    };
+    return this.authService.getProfile(userId);
   }
 
   // ============================================================
@@ -119,15 +121,20 @@ export class AuthController {
    *   Authorization is additionally scoped inside
    *   AuthService according to the current tenant.
    */
-  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
-  @RequireRoles(ROLE_SLUGS.SUPER_ADMIN, ROLE_SLUGS.TENANT_ADMIN)
-  @RequirePermissions(PERMISSION_SLUGS.USER_READ)
+  @UseGuards(InternalJwtGuard)
   @Get('users/:userId')
   getUser(
     @Param('userId') userId: string,
-    @Req() request: AuthenticatedRequest,
+    @Req() request: InternalAuthenticatedRequest,
   ) {
-    const requester = this.getAuthenticatedUser(request);
+    const requester = request.internalAuth;
+
+    if (!requester?.userId) {
+      throw new UnauthorizedException({
+        code: AUTH_ERROR_CODES.UNAUTHORIZED,
+        message: 'Authenticated user identity is missing.',
+      });
+    }
 
     return this.authService.getUser(requester, userId);
   }
@@ -136,13 +143,20 @@ export class AuthController {
   // Request Tenant Membership
   // ============================================================
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(InternalJwtGuard)
   @Post('tenants/:tenantId/memberships')
   requestTenantMembership(
     @Param('tenantId') tenantId: string,
-    @Req() request: AuthenticatedRequest,
+    @Req() request: InternalAuthenticatedRequest,
   ) {
-    const userId = this.getAuthenticatedUserId(request);
+    const userId = request.internalAuth?.userId;
+
+    if (!userId) {
+      throw new UnauthorizedException({
+        code: AUTH_ERROR_CODES.UNAUTHORIZED,
+        message: 'Authenticated user identity is missing.',
+      });
+    }
 
     return this.authService.requestTenantMembership(userId, tenantId);
   }
@@ -166,15 +180,20 @@ export class AuthController {
    * Owner role:
    *   none -> TENANT_ADMIN
    */
-  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
-  @RequireRoles(ROLE_SLUGS.SUPER_ADMIN)
-  @RequirePermissions(PERMISSION_SLUGS.TENANT_APPROVE)
+  @UseGuards(InternalJwtGuard)
   @Post('tenants/:tenantId/approve')
   approveTenant(
     @Param('tenantId') tenantId: string,
-    @Req() request: AuthenticatedRequest,
+    @Req() request: InternalAuthenticatedRequest,
   ) {
-    const requester = this.getAuthenticatedUser(request);
+    const requester = request.internalAuth;
+
+    if (!requester?.userId) {
+      throw new UnauthorizedException({
+        code: AUTH_ERROR_CODES.UNAUTHORIZED,
+        message: 'Authenticated user identity is missing.',
+      });
+    }
 
     return this.authService.approveTenant(requester, tenantId);
   }
@@ -196,15 +215,20 @@ export class AuthController {
    * Tenant scope for TENANT_ADMIN is enforced
    * inside AuthService.
    */
-  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
-  @RequireRoles(ROLE_SLUGS.SUPER_ADMIN, ROLE_SLUGS.TENANT_ADMIN)
-  @RequirePermissions(PERMISSION_SLUGS.TENANT_MEMBERSHIP_APPROVE)
+  @UseGuards(InternalJwtGuard)
   @Post('tenant-memberships/:membershipId/approve')
   approveTenantMembership(
     @Param('membershipId') membershipId: string,
-    @Req() request: AuthenticatedRequest,
+    @Req() request: InternalAuthenticatedRequest,
   ) {
-    const requester = this.getAuthenticatedUser(request);
+    const requester = request.internalAuth;
+
+    if (!requester?.userId) {
+      throw new UnauthorizedException({
+        code: AUTH_ERROR_CODES.UNAUTHORIZED,
+        message: 'Authenticated user identity is missing.',
+      });
+    }
 
     return this.authService.approveTenantMembership(requester, membershipId);
   }
@@ -226,15 +250,20 @@ export class AuthController {
    * Tenant scope for TENANT_ADMIN is enforced
    * inside AuthService.
    */
-  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
-  @RequireRoles(ROLE_SLUGS.SUPER_ADMIN, ROLE_SLUGS.TENANT_ADMIN)
-  @RequirePermissions(PERMISSION_SLUGS.TENANT_MEMBERSHIP_REJECT)
+  @UseGuards(InternalJwtGuard)
   @Post('tenant-memberships/:membershipId/reject')
   rejectTenantMembership(
     @Param('membershipId') membershipId: string,
-    @Req() request: AuthenticatedRequest,
+    @Req() request: InternalAuthenticatedRequest,
   ) {
-    const requester = this.getAuthenticatedUser(request);
+    const requester = request.internalAuth;
+
+    if (!requester?.userId) {
+      throw new UnauthorizedException({
+        code: AUTH_ERROR_CODES.UNAUTHORIZED,
+        message: 'Authenticated user identity is missing.',
+      });
+    }
 
     return this.authService.rejectTenantMembership(requester, membershipId);
   }

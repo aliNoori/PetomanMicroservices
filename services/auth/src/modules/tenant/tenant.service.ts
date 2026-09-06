@@ -15,12 +15,17 @@ import { PermissionEntity } from '../auth/entities/permission.entity';
 import { RolePermissionEntity } from '../auth/entities/role-permission.entity';
 
 import { CreateTenantDto } from './dtos/create-tenant.dto';
+import { UpdateTenantDto } from './dtos/update-tenant.dto';
 
 import { AUTH_ERROR_CODES } from '../../common/constants/auth-error-codes.constants';
 import { TENANT_STATUS } from '../../common/constants/tenant.constants';
 import { ROLE_SLUGS } from '../../common/constants/roles.constants';
-import { UpdateTenantDto } from './dtos/update-tenant.dto';
-import { AuthenticatedRequest } from '@petoman/security';
+
+import {
+  InternalAuthScope,
+  InternalJwtPayload,
+} from '@petoman/security';
+
 import { TenantUserRepository } from '../auth/repositories/tenant-user-repository';
 
 @Injectable()
@@ -94,7 +99,8 @@ export class TenantService {
 
       const roleRepository = manager.getRepository(RoleEntity);
 
-      const permissionRepository = manager.getRepository(PermissionEntity);
+      const permissionRepository =
+        manager.getRepository(PermissionEntity);
 
       const rolePermissionRepository =
         manager.getRepository(RolePermissionEntity);
@@ -165,7 +171,8 @@ export class TenantService {
         isSystem: false,
       });
 
-      const savedTenantAdminRole = await roleRepository.save(tenantAdminRole);
+      const savedTenantAdminRole =
+        await roleRepository.save(tenantAdminRole);
 
       // ========================================================
       // 5. Create STAFF Role
@@ -179,29 +186,53 @@ export class TenantService {
         isSystem: false,
       });
 
-      const savedStaffRole = await roleRepository.save(staffRole);
+      const savedStaffRole =
+        await roleRepository.save(staffRole);
 
       // ========================================================
       // 6. Required Permissions
       // ========================================================
 
       const tenantAdminPermissionSlugs = [
+        // Tenant
         'tenant.read',
         'tenant.update',
 
+        // Tenant Membership
         'tenant.membership.read',
         'tenant.membership.approve',
         'tenant.membership.reject',
 
+        // Tenant Roles
         'tenant.role.read',
         'tenant.role.assign',
         'tenant.role.remove',
+
+        // Products
+        'product.read',
+        'product.create',
+        'product.update',
+        'product.delete',
       ];
 
-      const staffPermissionSlugs = ['tenant.read', 'tenant.membership.read'];
+      const staffPermissionSlugs = [
+        // Tenant
+        'tenant.read',
+
+        // Tenant Membership
+        'tenant.membership.read',
+
+        // Products
+        'product.read',
+        'product.create',
+        'product.update',
+      ];
 
       const allPermissionSlugs = Array.from(
-        new Set([...tenantAdminPermissionSlugs, ...staffPermissionSlugs]),
+        new Set([
+          ...tenantAdminPermissionSlugs,
+          ...staffPermissionSlugs,
+        ]),
       );
 
       // ========================================================
@@ -215,23 +246,27 @@ export class TenantService {
       });
 
       const permissionMap = new Map(
-        permissions.map((permission) => [permission.slug, permission]),
+        permissions.map((permission) => [
+          permission.slug,
+          permission,
+        ]),
       );
 
       // ========================================================
       // 8. Validate Permissions
       // ========================================================
 
-      const missingPermissions = allPermissionSlugs.filter(
-        (slug) => !permissionMap.has(slug),
-      );
+      const missingPermissions =
+        allPermissionSlugs.filter(
+          (slug) => !permissionMap.has(slug),
+        );
 
       if (missingPermissions.length > 0) {
         throw new NotFoundException({
           code: AUTH_ERROR_CODES.ROLE_NOT_FOUND,
-          message: `Required permissions were not found: ${missingPermissions.join(
-            ', ',
-          )}`,
+          message:
+            `Required permissions were not found: ` +
+            `${missingPermissions.join(', ')}`,
         });
       }
 
@@ -295,7 +330,6 @@ export class TenantService {
 
           permissions: {
             tenantAdmin: tenantAdminPermissionSlugs,
-
             staff: staffPermissionSlugs,
           },
         },
@@ -315,8 +349,14 @@ export class TenantService {
    * JwtAuthGuard
    * PermissionsGuard
    * tenant.read
+   *
+   * Non-global requests additionally require
+   * an active membership in the requested tenant.
    */
-  async getTenant(tenantId: string) {
+  async getTenant(
+    requester: InternalJwtPayload,
+    tenantId: string,
+  ) {
     const tenant = await this.tenantRepository.findOne({
       where: {
         id: tenantId,
@@ -329,6 +369,11 @@ export class TenantService {
         message: 'Tenant not found.',
       });
     }
+
+    await this.assertActiveTenantMembership(
+      requester,
+      tenant.id,
+    );
 
     return {
       success: true as const,
@@ -343,7 +388,24 @@ export class TenantService {
     };
   }
 
-  async updateTenant(tenantId: string, dto: UpdateTenantDto) {
+  // ============================================================
+  // Update Tenant
+  // ============================================================
+
+  /**
+   * Update Tenant information.
+   *
+   * Non-global requests require:
+   *
+   * - TENANT scope
+   * - matching tenantId
+   * - active membership in the tenant
+   */
+  async updateTenant(
+    requester: InternalJwtPayload,
+    tenantId: string,
+    dto: UpdateTenantDto,
+  ) {
     const tenant = await this.tenantRepository.findOne({
       where: {
         id: tenantId,
@@ -357,6 +419,11 @@ export class TenantService {
       });
     }
 
+    await this.assertActiveTenantMembership(
+      requester,
+      tenant.id,
+    );
+
     if (dto.name !== undefined) {
       tenant.name = dto.name.trim();
     }
@@ -365,10 +432,12 @@ export class TenantService {
       tenant.slug = dto.slug.trim().toLowerCase();
     }
 
-    const savedTenant = await this.tenantRepository.save(tenant);
+    const savedTenant =
+      await this.tenantRepository.save(tenant);
 
     return {
       success: true as const,
+
       data: {
         id: savedTenant.id,
         name: savedTenant.name,
@@ -379,25 +448,14 @@ export class TenantService {
     };
   }
 
+  // ============================================================
+  // Get Tenant Memberships
+  // ============================================================
+
   async getTenantMemberships(
-    requester: AuthenticatedRequest['user'],
+    requester: InternalJwtPayload,
     tenantId: string,
   ) {
-    // ============================================================
-    // 1. Validate authenticated context
-    // ============================================================
-
-    if (!requester) {
-      throw new UnauthorizedException({
-        code: AUTH_ERROR_CODES.UNAUTHORIZED,
-        message: 'Authenticated user context is missing.',
-      });
-    }
-
-    // ============================================================
-    // 2. Tenant must exist
-    // ============================================================
-
     const tenant = await this.tenantRepository.findOne({
       where: {
         id: tenantId,
@@ -411,15 +469,12 @@ export class TenantService {
       });
     }
 
-    // ============================================================
-    // 3. SUPER_ADMIN
-    // ============================================================
-
-    const isSuperAdmin = requester.roles.includes(ROLE_SLUGS.SUPER_ADMIN);
-
-    if (isSuperAdmin) {
+    // GLOBAL scope can access memberships of any tenant.
+    if (requester.scope === InternalAuthScope.GLOBAL) {
       const memberships =
-        await this.tenantUserRepository.findByTenantId(tenantId);
+        await this.tenantUserRepository.findByTenantId(
+          tenantId,
+        );
 
       return {
         success: true as const,
@@ -432,64 +487,29 @@ export class TenantService {
             status: tenant.status,
           },
 
-          memberships: memberships.map((membership) => ({
-            membershipId: membership.id,
-            tenantId: membership.tenantId,
-            userId: membership.userId,
-            status: membership.status,
-          })),
+          memberships: memberships.map(
+            (membership) => ({
+              membershipId: membership.id,
+              tenantId: membership.tenantId,
+              userId: membership.userId,
+              status: membership.status,
+            }),
+          ),
         },
       };
     }
 
-    // ============================================================
-    // 4. Tenant context is required
-    // ============================================================
-
-    if (!requester.tenantId) {
-      throw new ForbiddenException({
-        code: AUTH_ERROR_CODES.FORBIDDEN,
-        message: 'Tenant context is required for this action.',
-      });
-    }
-
-    // ============================================================
-    // 5. Tenant isolation
-    // ============================================================
-
-    if (requester.tenantId !== tenantId) {
-      throw new ForbiddenException({
-        code: AUTH_ERROR_CODES.FORBIDDEN,
-        message: 'You do not have access to this tenant.',
-      });
-    }
-
-    // ============================================================
-    // 6. Verify active membership
-    // ============================================================
-
-    const membership = await this.tenantUserRepository.findActiveMembership(
+    // Non-global access requires an active tenant context
+    // and an active membership in that tenant.
+    await this.assertActiveTenantMembership(
+      requester,
       tenantId,
-      requester.sub,
     );
 
-    if (!membership) {
-      throw new ForbiddenException({
-        code: AUTH_ERROR_CODES.FORBIDDEN,
-        message: 'You are not an active member of this tenant.',
-      });
-    }
-
-    // ============================================================
-    // 7. Tenant-scoped query
-    // ============================================================
-
     const memberships =
-      await this.tenantUserRepository.findByTenantId(tenantId);
-
-    // ============================================================
-    // 8. Response
-    // ============================================================
+      await this.tenantUserRepository.findByTenantId(
+        tenantId,
+      );
 
     return {
       success: true as const,
@@ -502,13 +522,134 @@ export class TenantService {
           status: tenant.status,
         },
 
-        memberships: memberships.map((membership) => ({
-          membershipId: membership.id,
-          tenantId: membership.tenantId,
-          userId: membership.userId,
-          status: membership.status,
-        })),
+        memberships: memberships.map(
+          (membership) => ({
+            membershipId: membership.id,
+            tenantId: membership.tenantId,
+            userId: membership.userId,
+            status: membership.status,
+          }),
+        ),
       },
     };
+  }
+
+  // ============================================================
+  // Find Tenant By Slug
+  // ============================================================
+
+  async findBySlug(
+    storeSlug: string,
+  ): Promise<TenantEntity | null> {
+    const normalizedSlug =
+      storeSlug.trim().toLowerCase();
+
+    if (!normalizedSlug) {
+      return null;
+    }
+
+    return this.tenantRepository.findOne({
+      where: {
+        slug: normalizedSlug,
+      },
+    });
+  }
+
+  // ============================================================
+  // Tenant Scope Validation
+  // ============================================================
+
+  /**
+   * Validate that the requester can operate on the target tenant.
+   *
+   * GLOBAL:
+   *   Can access any tenant.
+   *
+   * TENANT:
+   *   Must have a tenant context matching the target tenant.
+   *
+   * NO_TENANT:
+   *   Cannot access tenant-scoped resources.
+   */
+  private assertTenantScope(
+    requester: InternalJwtPayload,
+    targetTenantId: string,
+  ): void {
+    if (requester.scope === InternalAuthScope.GLOBAL) {
+      return;
+    }
+
+    if (
+      requester.scope !== InternalAuthScope.TENANT ||
+      !requester.tenantId
+    ) {
+      throw new ForbiddenException({
+        code: AUTH_ERROR_CODES.TENANT_CONTEXT_REQUIRED,
+        message:
+          'A Tenant context is required for this operation.',
+      });
+    }
+
+    if (requester.tenantId !== targetTenantId) {
+      throw new ForbiddenException({
+        code: AUTH_ERROR_CODES.TENANT_SCOPE_FORBIDDEN,
+        message:
+          'You are not authorized to operate on this Tenant.',
+      });
+    }
+  }
+
+  // ============================================================
+  // Active Membership Validation
+  // ============================================================
+
+  /**
+   * Validate tenant scope and active membership.
+   *
+   * GLOBAL requests are allowed without a membership check.
+   * Non-global requests must:
+   *
+   * - have a valid TENANT scope
+   * - target the same tenant as the JWT context
+   * - have an active membership in that tenant
+   */
+  private async assertActiveTenantMembership(
+    requester: InternalJwtPayload,
+    tenantId: string,
+  ): Promise<void> {
+    this.assertTenantScope(
+      requester,
+      tenantId,
+    );
+
+    // GLOBAL scope is already authorized.
+    if (
+      requester.scope ===
+      InternalAuthScope.GLOBAL
+    ) {
+      return;
+    }
+
+    if (!requester.userId) {
+      throw new UnauthorizedException({
+        code: AUTH_ERROR_CODES.UNAUTHORIZED,
+        message:
+          'Authenticated user identity is missing.',
+      });
+    }
+
+    const membership =
+      await this.tenantUserRepository.findActiveMembership(
+        tenantId,
+        requester.userId,
+      );
+
+    if (!membership) {
+      throw new ForbiddenException({
+        code: AUTH_ERROR_CODES.FORBIDDEN,
+        message:
+          'You are not an active member of this tenant.',
+      });
+    }
   }
 }

@@ -1,36 +1,63 @@
-import { authTenantSelectRoute,
-  authTenantMembershipRejectRoute,
-  authTenantMembershipRoute,
-  authTenantMembershipApproveRoute,
-  authGetTenantsRoute,
-  authCreateTenantsRoute,
-  authUpdateTenantsRoute,
-  authTenantApproveRoute,
-  authGetTenantMembershipRoute
- } from './tenants.route';
 import {
-  authUsersRoute,
   authRegisterRoute,
   authLoginRoute,
-  authProfileRoute
+  authProfileRoute,
+  authUsersRoute,
 } from './users.route';
 
-export const authRoutes = [
+import {
+  authCreateTenantsRoute,
+  authGetTenantsRoute,
+  authUpdateTenantsRoute,
+  authTenantSelectRoute,
+  authTenantMembershipRoute,
+  authGetTenantMembershipRoute,
+  authTenantApproveRoute,
+  authTenantMembershipApproveRoute,
+  authTenantMembershipRejectRoute,
+} from './tenants.route';
 
-  //users routes
+/**
+ * All Gateway routes exposed by the Auth service.
+ *
+ * Routes are grouped by domain:
+ * - User authentication and profile
+ * - Tenant lifecycle and membership management
+ *
+ * Authentication and authorization requirements are defined
+ * at the individual route level.
+ */
+export const authRoutes = [
+  // ============================================================
+  // User Authentication & Profile
+  // ============================================================
+
   authRegisterRoute,
   authLoginRoute,
   authProfileRoute,
   authUsersRoute,
 
-  //tenants routes
-  authGetTenantsRoute,
+  // ============================================================
+  // Tenant Management
+  // ============================================================
+
   authCreateTenantsRoute,
+  authGetTenantsRoute,
   authUpdateTenantsRoute,
   authTenantSelectRoute,
-  authTenantMembershipRejectRoute,
+
+  // ============================================================
+  // Tenant Membership
+  // ============================================================
+
   authTenantMembershipRoute,
   authGetTenantMembershipRoute,
   authTenantMembershipApproveRoute,
-  authTenantApproveRoute  
+  authTenantMembershipRejectRoute,
+
+  // ============================================================
+  // Tenant Approval
+  // ============================================================
+
+  authTenantApproveRoute,
 ];
