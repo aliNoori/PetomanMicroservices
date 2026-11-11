@@ -14,7 +14,7 @@ import { GatewayAuthGuard } from '../../common/guards/gateway-auth.guard';
 import { TenantResolverService } from './services/tenant-resolver.service';
 import { GatewayDownstreamAuthService } from '../../common/authentication/gateway-downstream-auth.service';
 import { GatewayAuthorizationService } from '../../common/authorization/gateway-authorization.service';
-
+import { GatewayAuthenticationService } from './services/gateway-authentication.service';
 @Module({
   imports: [HttpModule, JwtConfigModule, JwtSecurityModule],
 
@@ -28,6 +28,7 @@ import { GatewayAuthorizationService } from '../../common/authorization/gateway-
     AggregationService,
     GatewayRouteRegistry,
     GatewayAuthGuard,
+    GatewayAuthenticationService,
     TenantResolverService,
     InternalJwtService,
     GatewayDownstreamAuthService,

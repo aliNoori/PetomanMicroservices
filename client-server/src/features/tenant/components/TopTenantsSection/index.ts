@@ -1,0 +1,3 @@
+export {
+  TopTenantsSection,
+} from "./TopTenantsSection";

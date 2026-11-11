@@ -1,0 +1,1 @@
+export { usePendingTenants } from "./usePendingTenants";

@@ -12,6 +12,7 @@
     "AUTH_USER_NOT_FOUND": "User not found.",
     "AUTH_USER_INACTIVE": "User account is inactive.",
     "AUTH_EMAIL_ALREADY_EXISTS": "A user with this email already exists.",
+    "EMAIL_NOT_VERIFIED": "Please verify your email address before signing in.",
 
     "AUTH_TENANT_NOT_FOUND": "Tenant not found.",
     "AUTH_TENANT_INACTIVE": "Tenant is inactive.",

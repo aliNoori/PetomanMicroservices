@@ -1,7 +1,7 @@
 import { AuthService } from './auth.service';
 
 import { InternalAuthScope, type InternalJwtPayload } from '@petoman/security';
-
+import { ROLE_SLUGS } from '../../common/constants/roles.constants';
 import { MEMBERSHIP_STATUS } from '../../common/constants/membership.constants';
 import { TENANT_STATUS } from '../../common/constants/tenant.constants';
 import { AUTH_ERROR_CODES } from '../../common/constants/auth-error-codes.constants';
@@ -48,12 +48,46 @@ describe('AuthService - getUser', () => {
   it('should return all tenant memberships for GLOBAL scope', async () => {
     const targetUserId = 'target-user';
 
-    userRepository.findOne.mockResolvedValue({
-      id: targetUserId,
-      email: 'target@test.com',
-      firstName: 'Target',
-      lastName: 'User',
-      isActive: true,
+    userRepository.findOne.mockImplementation(async ({ where }: any) => {
+      if (where.id === 'super-admin') {
+        return {
+          id: 'super-admin',
+          isActive: true,
+        };
+      }
+
+      if (where.id === targetUserId) {
+        return {
+          id: targetUserId,
+          email: 'target@test.com',
+          firstName: 'Target',
+          lastName: 'User',
+          isActive: true,
+        };
+      }
+
+      return null;
+    });
+
+    userRoleRepository.find.mockImplementation(async ({ where }: any) => {
+      if (where.userId === 'super-admin') {
+        return [
+          {
+            userId: 'super-admin',
+            tenantId: null,
+            role: {
+              slug: ROLE_SLUGS.SUPER_ADMIN,
+              isSystem: true,
+            },
+          },
+        ];
+      }
+
+      if (where.userId === targetUserId) {
+        return [];
+      }
+
+      return [];
     });
 
     tenantUserRepository.find.mockResolvedValue([
@@ -86,8 +120,6 @@ describe('AuthService - getUser', () => {
         },
       },
     ]);
-
-    userRoleRepository.find.mockResolvedValue([]);
 
     const requester: InternalJwtPayload = {
       sub: 'gateway',
@@ -207,12 +239,63 @@ describe('AuthService - getUser', () => {
   });
 
   it('should return tenant roles for all tenants in GLOBAL scope', async () => {
-    userRepository.findOne.mockResolvedValue({
-      id: 'user-1',
-      email: 'user@test.com',
-      firstName: 'Test',
-      lastName: 'User',
-      isActive: true,
+    userRepository.findOne.mockImplementation(async ({ where }: any) => {
+      if (where.id === 'admin-1') {
+        return {
+          id: 'admin-1',
+          isActive: true,
+        };
+      }
+
+      if (where.id === 'user-1') {
+        return {
+          id: 'user-1',
+          email: 'user@test.com',
+          firstName: 'Test',
+          lastName: 'User',
+          isActive: true,
+        };
+      }
+
+      return null;
+    });
+
+    userRoleRepository.find.mockImplementation(async ({ where }: any) => {
+      if (where.userId === 'admin-1') {
+        return [
+          {
+            userId: 'admin-1',
+            tenantId: null,
+            role: {
+              slug: ROLE_SLUGS.SUPER_ADMIN,
+              isSystem: true,
+            },
+          },
+        ];
+      }
+
+      if (where.userId === 'user-1') {
+        return [
+          {
+            userId: 'user-1',
+            tenantId: 'tenant-a',
+            role: {
+              slug: 'TENANT_ADMIN',
+              isSystem: false,
+            },
+          },
+          {
+            userId: 'user-1',
+            tenantId: 'tenant-b',
+            role: {
+              slug: 'STAFF',
+              isSystem: false,
+            },
+          },
+        ];
+      }
+
+      return [];
     });
 
     tenantUserRepository.find.mockResolvedValue([
@@ -242,25 +325,6 @@ describe('AuthService - getUser', () => {
           slug: 'tenant-b',
           status: TENANT_STATUS.ACTIVE,
           ownerId: 'owner-b',
-        },
-      },
-    ]);
-
-    userRoleRepository.find.mockResolvedValue([
-      {
-        userId: 'user-1',
-        tenantId: 'tenant-a',
-        role: {
-          slug: 'TENANT_ADMIN',
-          isSystem: false,
-        },
-      },
-      {
-        userId: 'user-1',
-        tenantId: 'tenant-b',
-        role: {
-          slug: 'STAFF',
-          isSystem: false,
         },
       },
     ]);
@@ -352,5 +416,77 @@ describe('AuthService - getUser', () => {
       tenantId: 'tenant-b',
       role: 'STAFF',
     });
+  });
+
+  it('should reject GLOBAL requests without userId', async () => {
+    const requester: InternalJwtPayload = {
+      sub: 'gateway',
+      type: 'internal',
+      scope: InternalAuthScope.GLOBAL,
+    };
+
+    await expect(
+      service.getUser(requester, 'target-user'),
+    ).rejects.toMatchObject({
+      status: 403,
+    });
+
+    expect(userRepository.findOne).not.toHaveBeenCalled();
+  });
+
+  it('should reject GLOBAL requests when requester is not a SUPER_ADMIN', async () => {
+    userRepository.findOne.mockImplementation(async ({ where }: any) => {
+      if (where.id === 'ordinary-user') {
+        return { id: 'ordinary-user', isActive: true };
+      }
+
+      return null;
+    });
+
+    userRoleRepository.find.mockResolvedValue([
+      {
+        userId: 'ordinary-user',
+        tenantId: null,
+        role: {
+          slug: 'USER',
+          isSystem: true,
+        },
+      },
+    ]);
+
+    const requester: InternalJwtPayload = {
+      sub: 'gateway',
+      type: 'internal',
+      scope: InternalAuthScope.GLOBAL,
+      userId: 'ordinary-user',
+    };
+
+    await expect(
+      service.getUser(requester, 'target-user'),
+    ).rejects.toMatchObject({
+      status: 403,
+    });
+  });
+
+  it('should reject GLOBAL requests from an inactive requester', async () => {
+    userRepository.findOne.mockResolvedValue({
+      id: 'super-admin',
+      isActive: false,
+    } as any);
+
+    const requester: InternalJwtPayload = {
+      sub: 'gateway',
+      type: 'internal',
+      scope: InternalAuthScope.GLOBAL,
+      userId: 'super-admin',
+    };
+
+    await expect(
+      service.getUser(requester, 'target-user'),
+    ).rejects.toMatchObject({
+      status: 403,
+    });
+
+    expect(userRoleRepository.find).not.toHaveBeenCalled();
   });
 });

@@ -33,10 +33,11 @@ export class GatewayDownstreamAuthService {
     switch (authMode) {
       case GatewayAuthMode.JWT: {
         const userId = request.user?.sub;
+        const sid = request.user?.sid;
 
-        if (!userId) {
+        if (!userId || !sid) {
           throw new UnauthorizedException(
-            'Authenticated user context is required.',
+            'Authenticated user and session context are required.',
           );
         }
 
@@ -55,6 +56,7 @@ export class GatewayDownstreamAuthService {
         const token = this.internalJwtService.signUserToken(
           userId,
           tenantId,
+          sid,
           scope,
           options,
         );

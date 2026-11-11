@@ -1,6 +1,4 @@
-import {
-  IsUUID,
-} from 'class-validator';
+import { IsNotEmpty, IsString, IsUUID } from 'class-validator';
 
 export class SelectTenantDto {
   /**
@@ -12,4 +10,15 @@ export class SelectTenantDto {
    */
   @IsUUID()
   tenantId!: string;
+
+  /**
+   * Refresh token identifying the current session.
+   *
+   * The server uses its hash to update only
+   * the refresh-token session that initiated
+   * this tenant selection.
+   */
+  @IsString()
+  @IsNotEmpty()
+  refresh_token!: string;
 }

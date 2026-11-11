@@ -7,6 +7,7 @@ import {
 
 import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
+import { DownstreamHttpException } from '../../../common/exceptions/downstream-http.exception';
 
 import { firstValueFrom } from 'rxjs';
 
@@ -58,34 +59,25 @@ export class ProxyService {
     body?: unknown,
     query?: Record<string, unknown>,
   ): Promise<unknown> {
-    const serviceName =
-      this.mapTargetToService(route.target);
+    const serviceName = this.mapTargetToService(route.target);
 
-    const service =
-      this.getServiceConfig(serviceName);
+    const service = this.getServiceConfig(serviceName);
 
-    const url =
-      this.buildUrl(
-        service.url,
-        downstreamPath,
-      );
+    const url = this.buildUrl(service.url, downstreamPath);
 
-    console.log(
-      `[ProxyService] ${method.toUpperCase()} ${url}`,
-    );
+    console.log(`[ProxyService] ${method.toUpperCase()} ${url}`);
 
     try {
-      const response =
-        await firstValueFrom(
-          this.httpService.request({
-            method: method.toUpperCase(),
-            url,
-            headers,
-            data: body,
-            params: query,
-            timeout: service.timeoutMs,
-          }),
-        );
+      const response = await firstValueFrom(
+        this.httpService.request({
+          method: method.toUpperCase(),
+          url,
+          headers,
+          data: body,
+          params: query,
+          timeout: service.timeoutMs,
+        }),
+      );
 
       return response.data;
     } catch (error: unknown) {
@@ -120,18 +112,15 @@ export class ProxyService {
       // ========================================================
 
       if (this.isDownstreamHttpError(error)) {
-        const status =
-          error.response.status;
+        console.log('[Gateway Downstream Error]', {
+          status: error.response.status,
+          data: error.response.data,
+        });
+        const status = error.response.status;
 
-        const data =
-          this.normalizeHttpErrorResponse(
-            error.response.data,
-          );
+        const data = this.normalizeHttpErrorResponse(error.response.data);
 
-        throw new HttpException(
-          data,
-          status,
-        );
+        throw new DownstreamHttpException(data, status);
       }
 
       // ========================================================
@@ -139,8 +128,7 @@ export class ProxyService {
       // ========================================================
 
       throw new ServiceUnavailableException({
-        code:
-          ERROR_CODES.SERVICE_UNAVAILABLE,
+        code: ERROR_CODES.SERVICE_UNAVAILABLE,
       });
     }
   }
@@ -149,9 +137,7 @@ export class ProxyService {
   // Target -> Service
   // ============================================================
 
-  private mapTargetToService(
-    target: GatewayTarget,
-  ): ServiceName {
+  private mapTargetToService(target: GatewayTarget): ServiceName {
     switch (target) {
       case GatewayTarget.AUTH:
         return SERVICE_NAMES.AUTH;
@@ -166,9 +152,7 @@ export class ProxyService {
         return SERVICE_NAMES.PHARMACY;
 
       default:
-        throw new Error(
-          `Unsupported Gateway target: ${target}`,
-        );
+        throw new Error(`Unsupported Gateway target: ${target}`);
     }
   }
 
@@ -176,21 +160,16 @@ export class ProxyService {
   // Service Configuration
   // ============================================================
 
-  private getServiceConfig(
-    serviceName: ServiceName,
-  ): ServiceConfig {
-    const service =
-      this.configService.get<ServiceConfig>(
-        `services.${serviceName}`,
-        {
-          infer: true,
-        },
-      );
+  private getServiceConfig(serviceName: ServiceName): ServiceConfig {
+    const service = this.configService.get<ServiceConfig>(
+      `services.${serviceName}`,
+      {
+        infer: true,
+      },
+    );
 
     if (!service) {
-      throw new Error(
-        `Service configuration not found: ${serviceName}`,
-      );
+      throw new Error(`Service configuration not found: ${serviceName}`);
     }
 
     return service;
@@ -200,15 +179,10 @@ export class ProxyService {
   // URL Builder
   // ============================================================
 
-  private buildUrl(
-    baseUrl: string,
-    downstreamPath: string,
-  ): string {
-    const normalizedBaseUrl =
-      baseUrl.replace(/\/+$/, '');
+  private buildUrl(baseUrl: string, downstreamPath: string): string {
+    const normalizedBaseUrl = baseUrl.replace(/\/+$/, '');
 
-    const normalizedPath =
-      downstreamPath.replace(/^\/+/, '');
+    const normalizedPath = downstreamPath.replace(/^\/+/, '');
 
     return `${normalizedBaseUrl}/${normalizedPath}`;
   }
@@ -217,30 +191,20 @@ export class ProxyService {
   // Timeout Detection
   // ============================================================
 
-  private isTimeoutError(
-    error: unknown,
-  ): boolean {
+  private isTimeoutError(error: unknown): boolean {
     if (!this.isErrorWithCode(error)) {
       return false;
     }
 
-    return (
-      error.code === 'ECONNABORTED' ||
-      error.code === 'ETIMEDOUT'
-    );
+    return error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT';
   }
 
   // ============================================================
   // Downstream HTTP Error
   // ============================================================
 
-  private isDownstreamHttpError(
-    error: unknown,
-  ): error is DownstreamHttpError {
-    if (
-      typeof error !== 'object' ||
-      error === null
-    ) {
+  private isDownstreamHttpError(error: unknown): error is DownstreamHttpError {
+    if (typeof error !== 'object' || error === null) {
       return false;
     }
 
@@ -248,43 +212,29 @@ export class ProxyService {
       return false;
     }
 
-    const response =
-      error.response;
+    const response = error.response;
 
-    if (
-      typeof response !== 'object' ||
-      response === null
-    ) {
+    if (typeof response !== 'object' || response === null) {
       return false;
     }
 
-    if (
-      !('status' in response) ||
-      !('data' in response)
-    ) {
+    if (!('status' in response) || !('data' in response)) {
       return false;
     }
 
-    return (
-      typeof response.status === 'number'
-    );
+    return typeof response.status === 'number';
   }
 
   // ============================================================
   // Error Code Detection
   // ============================================================
 
-  private isErrorWithCode(
-    error: unknown,
-  ): error is ErrorWithCode {
+  private isErrorWithCode(error: unknown): error is ErrorWithCode {
     return (
       typeof error === 'object' &&
       error !== null &&
       'code' in error &&
-      (
-        typeof error.code === 'string' ||
-        typeof error.code === 'undefined'
-      )
+      (typeof error.code === 'string' || typeof error.code === 'undefined')
     );
   }
 
@@ -295,22 +245,17 @@ export class ProxyService {
   private normalizeHttpErrorResponse(
     data: unknown,
   ): string | Record<string, any> {
-    if (
-      typeof data === 'string'
-    ) {
+    if (typeof data === 'string') {
       return data;
     }
 
-    if (
-      typeof data === 'object' &&
-      data !== null
-    ) {
+    if (typeof data === 'object' && data !== null) {
       return data as Record<string, any>;
     }
 
     return {
-      code:
-        ERROR_CODES.SERVICE_UNAVAILABLE,
+      code: 'DOWNSTREAM_ERROR',
+      message: 'The downstream service returned an invalid error response.',
     };
   }
 }

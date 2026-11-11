@@ -6,6 +6,7 @@ export class ProxyHeaderService {
   private readonly allowedHeaders = [
     'x-request-id',
     'accept-language',
+    'user-agent',
   ] as const;
 
   getForwardHeaders(

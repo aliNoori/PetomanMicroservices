@@ -1,3 +1,4 @@
+
 import {
   CanActivate,
   ExecutionContext,
@@ -17,16 +18,15 @@ export class JwtAuthGuard implements CanActivate {
     private readonly tokenValidator: TokenValidatorService,
   ) {}
 
-  canActivate(
+  async canActivate(
     context: ExecutionContext,
-  ): boolean {
+  ): Promise<boolean> {
     const request =
       context
         .switchToHttp()
         .getRequest<AuthenticatedRequest>();
 
-    const authorization =
-      request.headers.authorization;
+    const authorization = request.headers.authorization;
 
     if (!authorization) {
       throw new UnauthorizedException({
@@ -35,8 +35,7 @@ export class JwtAuthGuard implements CanActivate {
       });
     }
 
-    const [scheme, token] =
-      authorization.trim().split(/\s+/);
+    const [scheme, token] = authorization.trim().split(/\s+/);
 
     if (
       scheme?.toLowerCase() !== 'bearer' ||
@@ -48,8 +47,7 @@ export class JwtAuthGuard implements CanActivate {
       });
     }
 
-    const payload =
-      this.tokenValidator.validate(token);
+    const payload = await this.tokenValidator.validate(token);
 
     request.user = payload;
 

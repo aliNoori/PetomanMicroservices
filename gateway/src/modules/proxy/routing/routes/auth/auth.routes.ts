@@ -3,7 +3,20 @@ import {
   authLoginRoute,
   authProfileRoute,
   authUsersRoute,
+  authRefreshRoute,
+  authRevokeSessionRoute,
+  authSessionsRoute,
+  authDeleteSessionHistoryRoute,
+  authLogoutRoute,
+  authChangePasswordRoute,
+  authVerifyEmailRoute,
+  authResendVerificationEmailRoute,
+  authPendingTenantsRoute,
 } from './users.route';
+
+import{
+  redisConnectionTestRoute
+} from './health.route';
 
 import {
   authCreateTenantsRoute,
@@ -13,6 +26,7 @@ import {
   authTenantMembershipRoute,
   authGetTenantMembershipRoute,
   authTenantApproveRoute,
+  authTenantRejectRoute,
   authTenantMembershipApproveRoute,
   authTenantMembershipRejectRoute,
 } from './tenants.route';
@@ -28,14 +42,25 @@ import {
  * at the individual route level.
  */
 export const authRoutes = [
+
+  redisConnectionTestRoute,
   // ============================================================
   // User Authentication & Profile
   // ============================================================
 
   authRegisterRoute,
   authLoginRoute,
+  authLogoutRoute,
   authProfileRoute,
   authUsersRoute,
+  authRefreshRoute,
+  authSessionsRoute,
+  authRevokeSessionRoute,
+  authDeleteSessionHistoryRoute,
+  authChangePasswordRoute,
+  authVerifyEmailRoute,
+  authResendVerificationEmailRoute,
+  authPendingTenantsRoute,
 
   // ============================================================
   // Tenant Management
@@ -60,4 +85,5 @@ export const authRoutes = [
   // ============================================================
 
   authTenantApproveRoute,
+  authTenantRejectRoute,
 ];

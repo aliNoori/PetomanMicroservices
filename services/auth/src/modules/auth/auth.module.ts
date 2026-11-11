@@ -20,19 +20,27 @@ import { PermissionEntity } from './entities/permission.entity';
 import { RolePermissionEntity } from './entities/role-permission.entity';
 import { TenantModule } from '../tenant/tenant.module';
 import { ConfigurationService } from '../../config/configuration.service';
+import { RefreshTokenEntity } from './entities/refresh-token.entity';
+import { DeviceInfoService } from './device-info.service';
+import { RedisModule } from '@petoman/infrastructure';
+import { EmailVerificationTokenEntity } from './entities/email-verification-token.entity';
+import { EmailVerificationTokenRepository } from './repositories/email-verification-token.repository';
 
 @Module({
   imports: [
     JwtConfigModule,
     TenantModule,
+    RedisModule,
     TypeOrmModule.forFeature([
       TenantEntity,
+      RefreshTokenEntity,
       UserEntity,
       TenantUserEntity,
       RoleEntity,
       UserRoleEntity,
       PermissionEntity,
       RolePermissionEntity,
+      EmailVerificationTokenEntity,
     ]),
   ],
 
@@ -40,8 +48,10 @@ import { ConfigurationService } from '../../config/configuration.service';
 
   providers: [
     AuthService,
+    DeviceInfoService,
 
     InternalJwtService,
+    EmailVerificationTokenRepository,
 
     {
       provide: INTERNAL_JWT_OPTIONS,

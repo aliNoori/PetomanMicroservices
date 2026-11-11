@@ -1,0 +1,1 @@
+export { ManageTenants } from "./ManageTenants";

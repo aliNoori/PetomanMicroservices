@@ -1,9 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 
-import {
-  DocumentBuilder,
-  SwaggerModule,
-} from '@nestjs/swagger';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 import { AppModule } from './app.module';
 
@@ -14,15 +11,13 @@ import { marketProductsOpenApi } from './docs/openapi/market-products.openapi';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  app.useGlobalInterceptors(
-    new ApiResponseInterceptor(),
-  );
+  app.useGlobalInterceptors(new ApiResponseInterceptor());
+
+  app.enableCors({ origin: ['http://localhost:5173','http://192.168.100.3:5173'] });
 
   const config = new DocumentBuilder()
     .setTitle("Petoman API's")
-    .setDescription(
-      "Public API's documentation for the Petoman platform.",
-    )
+    .setDescription("Public API's documentation for the Petoman platform.")
     .setVersion('1.0.0')
     .addBearerAuth(
       {
@@ -34,10 +29,7 @@ async function bootstrap() {
     )
     .build();
 
-  const document = SwaggerModule.createDocument(
-    app,
-    config,
-  );
+  const document = SwaggerModule.createDocument(app, config);
 
   document.components ??= {};
   document.components.schemas ??= {};
@@ -47,20 +39,11 @@ async function bootstrap() {
     marketProductsOpenApi.components.schemas,
   );
 
-  Object.assign(
-    document.paths,
-    marketProductsOpenApi.paths,
-  );
+  Object.assign(document.paths, marketProductsOpenApi.paths);
 
-  SwaggerModule.setup(
-    'api/docs',
-    app,
-    document,
-  );
+  SwaggerModule.setup('api/docs', app, document);
 
-  await app.listen(
-    process.env.PORT ?? 3000,
-  );
+  await app.listen(process.env.PORT ?? 3000,'0.0.0.0');
 }
 
 bootstrap();

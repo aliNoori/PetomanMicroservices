@@ -23,6 +23,20 @@ export class UserEntity {
   email!: string;
 
   @Column({
+    name: 'is_email_verified',
+    type: 'boolean',
+    default: false,
+  })
+  isEmailVerified!: boolean;
+
+  @Column({
+    name: 'email_verified_at',
+    type: 'timestamptz',
+    nullable: true,
+  })
+  emailVerifiedAt!: Date | null;
+
+  @Column({
     name: 'password_hash',
     type: 'varchar',
     length: 255,
@@ -70,29 +84,20 @@ export class UserEntity {
   // Tenant Ownership
   // ============================================================
 
-  @OneToMany(
-    () => TenantEntity,
-    (tenant) => tenant.owner,
-  )
+  @OneToMany(() => TenantEntity, (tenant) => tenant.owner)
   ownedTenants!: TenantEntity[];
 
   // ============================================================
   // Tenant Memberships
   // ============================================================
 
-  @OneToMany(
-    () => TenantUserEntity,
-    (tenantUser) => tenantUser.user,
-  )
+  @OneToMany(() => TenantUserEntity, (tenantUser) => tenantUser.user)
   tenantMemberships!: TenantUserEntity[];
 
   // ============================================================
   // Role Assignments
   // ============================================================
 
-  @OneToMany(
-    () => UserRoleEntity,
-    (userRole) => userRole.user,
-  )
+  @OneToMany(() => UserRoleEntity, (userRole) => userRole.user)
   userRoles!: UserRoleEntity[];
 }

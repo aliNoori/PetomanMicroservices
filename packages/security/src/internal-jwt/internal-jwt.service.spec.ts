@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach } from '@jest/globals';
+import { describe, expect, it, beforeEach } from "@jest/globals";
 import { InternalAuthScope, InternalJwtService } from "./internal-jwt.service";
 import { verify, JwtPayload, sign } from "jsonwebtoken";
 
@@ -11,6 +11,8 @@ describe("InternalJwtService", () => {
     audience: "petoman-market",
     expiresInSeconds: 60,
   };
+
+  const sessionId = "550e8400-e29b-41d4-a716-446655440000";
 
   beforeEach(() => {
     service = new InternalJwtService();
@@ -248,6 +250,7 @@ describe("InternalJwtService", () => {
     const token = service.signUserToken(
       "user-001",
       undefined,
+      sessionId,
       InternalAuthScope.NO_TENANT,
       options,
     );
@@ -259,6 +262,7 @@ describe("InternalJwtService", () => {
       type: "internal",
       scope: InternalAuthScope.NO_TENANT,
       userId: "user-001",
+      sid: sessionId,
     });
 
     expect(payload.tenantId).toBeUndefined();
@@ -282,6 +286,83 @@ describe("InternalJwtService", () => {
 
     expect(() => service.verify(token, options)).toThrow(
       "Invalid internal auth scope.",
+    );
+  });
+
+  it("should verify a GLOBAL user token with userId and no tenantId", () => {
+    const token = service.signUserToken(
+      "user-001",
+      undefined,
+      sessionId,
+      InternalAuthScope.GLOBAL,
+      options,
+    );
+
+    const payload = service.verify(token, options);
+
+    expect(payload).toMatchObject({
+      sub: "gateway",
+      type: "internal",
+      scope: InternalAuthScope.GLOBAL,
+      userId: "user-001",
+      sid: sessionId,
+    });
+
+    expect(payload.tenantId).toBeUndefined();
+  });
+
+  it("should verify a GLOBAL service token without userId or tenantId", () => {
+    const token = service.signServiceToken(options);
+
+    const payload = service.verify(token, options);
+
+    expect(payload.scope).toBe(InternalAuthScope.GLOBAL);
+    expect(payload.userId).toBeUndefined();
+    expect(payload.tenantId).toBeUndefined();
+  });
+
+  it("should reject a GLOBAL token with tenantId", () => {
+    const token = sign(
+      {
+        sub: "gateway",
+        type: "internal",
+        scope: InternalAuthScope.GLOBAL,
+        userId: "user-001",
+        tenantId: "tenant-001",
+      },
+      options.secret,
+      {
+        algorithm: "HS256",
+        issuer: options.issuer,
+        audience: options.audience,
+        expiresIn: options.expiresInSeconds,
+      },
+    );
+
+    expect(() => service.verify(token, options)).toThrow(
+      "Invalid GLOBAL internal JWT.",
+    );
+  });
+
+  it("should reject a user token without a session ID", () => {
+    const token = sign(
+      {
+        sub: "gateway",
+        type: "internal",
+        scope: InternalAuthScope.NO_TENANT,
+        userId: "user-001",
+      },
+      options.secret,
+      {
+        algorithm: "HS256",
+        issuer: options.issuer,
+        audience: options.audience,
+        expiresIn: options.expiresInSeconds,
+      },
+    );
+
+    expect(() => service.verify(token, options)).toThrow(
+      "Internal user JWT must contain a session ID.",
     );
   });
 });

@@ -15,6 +15,7 @@ export interface InternalJwtPayload {
   readonly scope: InternalAuthScope;
   readonly userId?: string;
   readonly tenantId?: string;
+  readonly sid?: string;
 }
 
 export interface InternalJwtOptions {
@@ -29,6 +30,7 @@ export class InternalJwtService {
   signUserToken(
     userId: string,
     tenantId: string | undefined,
+    sid: string,
     scope: InternalAuthScope,
     options: InternalJwtOptions,
   ): string {
@@ -37,6 +39,7 @@ export class InternalJwtService {
       type: "internal",
       scope,
       userId,
+      sid,
       ...(tenantId ? { tenantId } : {}),
     };
 
@@ -81,6 +84,7 @@ export class InternalJwtService {
 
   verify(token: string, options: InternalJwtOptions): InternalJwtPayload {
     const decoded = verify(token, options.secret, {
+      algorithms: ["HS256"],
       issuer: options.issuer,
       audience: options.audience,
     });
@@ -105,22 +109,37 @@ export class InternalJwtService {
     if (
       "userId" in decoded &&
       decoded.userId !== undefined &&
-      (typeof decoded.userId !== "string" || decoded.userId.length === 0)
+      (typeof decoded.userId !== "string" || decoded.userId.trim().length === 0)
     ) {
       throw new Error("Invalid internal user ID.");
     }
 
     if (
+      "sid" in decoded &&
+      decoded.sid !== undefined &&
+      (typeof decoded.sid !== "string" || decoded.sid.trim().length === 0)
+    ) {
+      throw new Error("Invalid internal session ID.");
+    }
+
+    if (decoded.userId && !decoded.sid) {
+      throw new Error("Internal user JWT must contain a session ID.");
+    }
+
+    if (
       "tenantId" in decoded &&
       decoded.tenantId !== undefined &&
-      (typeof decoded.tenantId !== "string" || decoded.tenantId.length === 0)
+      (typeof decoded.tenantId !== "string" ||
+        decoded.tenantId.trim().length === 0)
     ) {
       throw new Error("Invalid internal tenant ID.");
     }
 
+    // GLOBAL requests must not carry a tenant context.
+    // They may represent either a user or a trusted service.
     if (
       decoded.scope === InternalAuthScope.GLOBAL &&
-      (decoded.userId !== undefined || decoded.tenantId !== undefined)
+      decoded.tenantId !== undefined
     ) {
       throw new Error("Invalid GLOBAL internal JWT.");
     }

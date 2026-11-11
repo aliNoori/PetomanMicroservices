@@ -14,13 +14,14 @@ import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
 import { ProxyModule } from './modules/proxy/proxy.module';
 import { JwtConfigModule } from './common/security/jwt.config.module';
 import internalJwtConfig from './config/internal-jwt.config';
+import { RedisModule } from '@petoman/infrastructure';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       cache: true,
-      load: [appConfig, servicesConfig,internalJwtConfig],
+      load: [appConfig, servicesConfig, internalJwtConfig],
       envFilePath: ['.env'],
       validationSchema: Joi.object({
         NODE_ENV: Joi.string()
@@ -98,12 +99,22 @@ import internalJwtConfig from './config/internal-jwt.config';
           .min(100)
           .max(120000)
           .default(10000),
+
+        REDIS_HOST: Joi.string().default('127.0.0.1'),
+
+        REDIS_PORT: Joi.number().port().default(6379),
+
+        REDIS_DB: Joi.number().integer().min(0).default(0),
+
+        REDIS_PASSWORD: Joi.string().allow('').optional(),
       }),
       validationOptions: {
         allowUnknown: true,
         abortEarly: false,
       },
     }),
+
+    RedisModule,
 
     ConfigurationModule,
     HealthModule,

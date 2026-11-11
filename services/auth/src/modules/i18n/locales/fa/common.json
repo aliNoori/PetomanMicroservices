@@ -12,6 +12,7 @@
     "AUTH_USER_NOT_FOUND": "کاربر پیدا نشد.",
     "AUTH_USER_INACTIVE": "حساب کاربری غیرفعال است.",
     "AUTH_EMAIL_ALREADY_EXISTS": "کاربری با این ایمیل قبلاً وجود دارد.",
+    "EMAIL_NOT_VERIFIED": "لطفاً پیش از ورود، آدرس ایمیل خود را تأیید کنید.",
 
     "AUTH_TENANT_NOT_FOUND": "Tenant پیدا نشد.",
     "AUTH_TENANT_INACTIVE": "Tenant غیرفعال است.",

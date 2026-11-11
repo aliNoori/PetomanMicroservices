@@ -69,7 +69,7 @@ export class GatewayDispatcherService {
     const routeMatch = this.routeResolver.resolve(request.method, request.path);
 
     if (routeMatch.route.auth === GatewayAuthMode.JWT) {
-      this.gatewayAuthGuard.authenticate(request);
+      await this.gatewayAuthGuard.authenticate(request);
 
       this.gatewayAuthorizationService.authorize(request, routeMatch.route);
     }

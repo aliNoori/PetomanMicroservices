@@ -21,10 +21,7 @@ import { AUTH_ERROR_CODES } from '../../common/constants/auth-error-codes.consta
 import { TENANT_STATUS } from '../../common/constants/tenant.constants';
 import { ROLE_SLUGS } from '../../common/constants/roles.constants';
 
-import {
-  InternalAuthScope,
-  InternalJwtPayload,
-} from '@petoman/security';
+import { InternalAuthScope, InternalJwtPayload } from '@petoman/security';
 
 import { TenantUserRepository } from '../auth/repositories/tenant-user-repository';
 
@@ -99,8 +96,7 @@ export class TenantService {
 
       const roleRepository = manager.getRepository(RoleEntity);
 
-      const permissionRepository =
-        manager.getRepository(PermissionEntity);
+      const permissionRepository = manager.getRepository(PermissionEntity);
 
       const rolePermissionRepository =
         manager.getRepository(RolePermissionEntity);
@@ -171,8 +167,7 @@ export class TenantService {
         isSystem: false,
       });
 
-      const savedTenantAdminRole =
-        await roleRepository.save(tenantAdminRole);
+      const savedTenantAdminRole = await roleRepository.save(tenantAdminRole);
 
       // ========================================================
       // 5. Create STAFF Role
@@ -186,8 +181,7 @@ export class TenantService {
         isSystem: false,
       });
 
-      const savedStaffRole =
-        await roleRepository.save(staffRole);
+      const savedStaffRole = await roleRepository.save(staffRole);
 
       // ========================================================
       // 6. Required Permissions
@@ -229,10 +223,7 @@ export class TenantService {
       ];
 
       const allPermissionSlugs = Array.from(
-        new Set([
-          ...tenantAdminPermissionSlugs,
-          ...staffPermissionSlugs,
-        ]),
+        new Set([...tenantAdminPermissionSlugs, ...staffPermissionSlugs]),
       );
 
       // ========================================================
@@ -246,20 +237,16 @@ export class TenantService {
       });
 
       const permissionMap = new Map(
-        permissions.map((permission) => [
-          permission.slug,
-          permission,
-        ]),
+        permissions.map((permission) => [permission.slug, permission]),
       );
 
       // ========================================================
       // 8. Validate Permissions
       // ========================================================
 
-      const missingPermissions =
-        allPermissionSlugs.filter(
-          (slug) => !permissionMap.has(slug),
-        );
+      const missingPermissions = allPermissionSlugs.filter(
+        (slug) => !permissionMap.has(slug),
+      );
 
       if (missingPermissions.length > 0) {
         throw new NotFoundException({
@@ -305,33 +292,29 @@ export class TenantService {
       // ========================================================
 
       return {
-        success: true as const,
+        tenant: {
+          id: savedTenant.id,
+          name: savedTenant.name,
+          slug: savedTenant.slug,
+          ownerId: savedTenant.ownerId,
+          status: savedTenant.status,
+        },
 
-        data: {
-          tenant: {
-            id: savedTenant.id,
-            name: savedTenant.name,
-            slug: savedTenant.slug,
-            ownerId: savedTenant.ownerId,
-            status: savedTenant.status,
+        defaultRoles: {
+          tenantAdmin: {
+            id: savedTenantAdminRole.id,
+            slug: savedTenantAdminRole.slug,
           },
 
-          defaultRoles: {
-            tenantAdmin: {
-              id: savedTenantAdminRole.id,
-              slug: savedTenantAdminRole.slug,
-            },
-
-            staff: {
-              id: savedStaffRole.id,
-              slug: savedStaffRole.slug,
-            },
+          staff: {
+            id: savedStaffRole.id,
+            slug: savedStaffRole.slug,
           },
+        },
 
-          permissions: {
-            tenantAdmin: tenantAdminPermissionSlugs,
-            staff: staffPermissionSlugs,
-          },
+        permissions: {
+          tenantAdmin: tenantAdminPermissionSlugs,
+          staff: staffPermissionSlugs,
         },
       };
     });
@@ -353,10 +336,7 @@ export class TenantService {
    * Non-global requests additionally require
    * an active membership in the requested tenant.
    */
-  async getTenant(
-    requester: InternalJwtPayload,
-    tenantId: string,
-  ) {
+  async getTenant(requester: InternalJwtPayload, tenantId: string) {
     const tenant = await this.tenantRepository.findOne({
       where: {
         id: tenantId,
@@ -370,10 +350,7 @@ export class TenantService {
       });
     }
 
-    await this.assertActiveTenantMembership(
-      requester,
-      tenant.id,
-    );
+    await this.assertActiveTenantMembership(requester, tenant.id);
 
     return {
       success: true as const,
@@ -419,10 +396,7 @@ export class TenantService {
       });
     }
 
-    await this.assertActiveTenantMembership(
-      requester,
-      tenant.id,
-    );
+    await this.assertActiveTenantMembership(requester, tenant.id);
 
     if (dto.name !== undefined) {
       tenant.name = dto.name.trim();
@@ -432,8 +406,7 @@ export class TenantService {
       tenant.slug = dto.slug.trim().toLowerCase();
     }
 
-    const savedTenant =
-      await this.tenantRepository.save(tenant);
+    const savedTenant = await this.tenantRepository.save(tenant);
 
     return {
       success: true as const,
@@ -452,10 +425,7 @@ export class TenantService {
   // Get Tenant Memberships
   // ============================================================
 
-  async getTenantMemberships(
-    requester: InternalJwtPayload,
-    tenantId: string,
-  ) {
+  async getTenantMemberships(requester: InternalJwtPayload, tenantId: string) {
     const tenant = await this.tenantRepository.findOne({
       where: {
         id: tenantId,
@@ -472,9 +442,7 @@ export class TenantService {
     // GLOBAL scope can access memberships of any tenant.
     if (requester.scope === InternalAuthScope.GLOBAL) {
       const memberships =
-        await this.tenantUserRepository.findByTenantId(
-          tenantId,
-        );
+        await this.tenantUserRepository.findByTenantId(tenantId);
 
       return {
         success: true as const,
@@ -487,29 +455,22 @@ export class TenantService {
             status: tenant.status,
           },
 
-          memberships: memberships.map(
-            (membership) => ({
-              membershipId: membership.id,
-              tenantId: membership.tenantId,
-              userId: membership.userId,
-              status: membership.status,
-            }),
-          ),
+          memberships: memberships.map((membership) => ({
+            membershipId: membership.id,
+            tenantId: membership.tenantId,
+            userId: membership.userId,
+            status: membership.status,
+          })),
         },
       };
     }
 
     // Non-global access requires an active tenant context
     // and an active membership in that tenant.
-    await this.assertActiveTenantMembership(
-      requester,
-      tenantId,
-    );
+    await this.assertActiveTenantMembership(requester, tenantId);
 
     const memberships =
-      await this.tenantUserRepository.findByTenantId(
-        tenantId,
-      );
+      await this.tenantUserRepository.findByTenantId(tenantId);
 
     return {
       success: true as const,
@@ -522,14 +483,12 @@ export class TenantService {
           status: tenant.status,
         },
 
-        memberships: memberships.map(
-          (membership) => ({
-            membershipId: membership.id,
-            tenantId: membership.tenantId,
-            userId: membership.userId,
-            status: membership.status,
-          }),
-        ),
+        memberships: memberships.map((membership) => ({
+          membershipId: membership.id,
+          tenantId: membership.tenantId,
+          userId: membership.userId,
+          status: membership.status,
+        })),
       },
     };
   }
@@ -538,11 +497,8 @@ export class TenantService {
   // Find Tenant By Slug
   // ============================================================
 
-  async findBySlug(
-    storeSlug: string,
-  ): Promise<TenantEntity | null> {
-    const normalizedSlug =
-      storeSlug.trim().toLowerCase();
+  async findBySlug(storeSlug: string): Promise<TenantEntity | null> {
+    const normalizedSlug = storeSlug.trim().toLowerCase();
 
     if (!normalizedSlug) {
       return null;
@@ -579,22 +535,17 @@ export class TenantService {
       return;
     }
 
-    if (
-      requester.scope !== InternalAuthScope.TENANT ||
-      !requester.tenantId
-    ) {
+    if (requester.scope !== InternalAuthScope.TENANT || !requester.tenantId) {
       throw new ForbiddenException({
         code: AUTH_ERROR_CODES.TENANT_CONTEXT_REQUIRED,
-        message:
-          'A Tenant context is required for this operation.',
+        message: 'A Tenant context is required for this operation.',
       });
     }
 
     if (requester.tenantId !== targetTenantId) {
       throw new ForbiddenException({
         code: AUTH_ERROR_CODES.TENANT_SCOPE_FORBIDDEN,
-        message:
-          'You are not authorized to operate on this Tenant.',
+        message: 'You are not authorized to operate on this Tenant.',
       });
     }
   }
@@ -617,38 +568,29 @@ export class TenantService {
     requester: InternalJwtPayload,
     tenantId: string,
   ): Promise<void> {
-    this.assertTenantScope(
-      requester,
-      tenantId,
-    );
+    this.assertTenantScope(requester, tenantId);
 
     // GLOBAL scope is already authorized.
-    if (
-      requester.scope ===
-      InternalAuthScope.GLOBAL
-    ) {
+    if (requester.scope === InternalAuthScope.GLOBAL) {
       return;
     }
 
     if (!requester.userId) {
       throw new UnauthorizedException({
         code: AUTH_ERROR_CODES.UNAUTHORIZED,
-        message:
-          'Authenticated user identity is missing.',
+        message: 'Authenticated user identity is missing.',
       });
     }
 
-    const membership =
-      await this.tenantUserRepository.findActiveMembership(
-        tenantId,
-        requester.userId,
-      );
+    const membership = await this.tenantUserRepository.findActiveMembership(
+      tenantId,
+      requester.userId,
+    );
 
     if (!membership) {
       throw new ForbiddenException({
         code: AUTH_ERROR_CODES.FORBIDDEN,
-        message:
-          'You are not an active member of this tenant.',
+        message: 'You are not an active member of this tenant.',
       });
     }
   }

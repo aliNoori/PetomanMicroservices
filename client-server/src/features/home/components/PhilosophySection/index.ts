@@ -1,0 +1,3 @@
+export {
+  PhilosophySection,
+} from "./PhilosophySection";

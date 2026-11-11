@@ -20,7 +20,6 @@ import { UserRoleEntity } from './user-role.entity';
 export type TenantStatus = (typeof TENANT_STATUS)[keyof typeof TENANT_STATUS];
 
 @Index('IDX_tenants_owner_id')
-
 @Entity('tenants')
 export class TenantEntity {
   @PrimaryGeneratedColumn('uuid')
@@ -69,6 +68,42 @@ export class TenantEntity {
     default: TENANT_STATUS.PENDING,
   })
   status!: TenantStatus;
+
+  // ============================================================
+  // Review
+  // ============================================================
+
+  @Column({
+    name: 'reviewed_at',
+    type: 'timestamptz',
+    nullable: true,
+  })
+  reviewedAt!: Date | null;
+
+  @Column({
+    name: 'reviewed_by',
+    type: 'uuid',
+    nullable: true,
+  })
+  reviewedBy!: string | null;
+
+  @ManyToOne(() => UserEntity, {
+    nullable: true,
+    onDelete: 'SET NULL',
+    onUpdate: 'CASCADE',
+  })
+  @JoinColumn({
+    name: 'reviewed_by',
+  })
+  reviewer!: UserEntity | null;
+
+  @Column({
+    name: 'rejection_reason',
+    type: 'varchar',
+    length: 1000,
+    nullable: true,
+  })
+  rejectionReason!: string | null;
 
   // ============================================================
   // Memberships

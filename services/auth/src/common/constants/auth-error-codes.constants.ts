@@ -27,6 +27,9 @@ export const AUTH_ERROR_CODES = {
   EMAIL_ALREADY_EXISTS:
     'AUTH_EMAIL_ALREADY_EXISTS',
 
+  EMAIL_NOT_VERIFIED:
+    'EMAIL_NOT_VERIFIED',
+
   // ============================================================
   // Tenant
   // ============================================================

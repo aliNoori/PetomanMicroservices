@@ -46,4 +46,13 @@ export class ConfigurationService {
       ),
     };
   }
+
+  get mail() {
+    return {
+      verificationUrl: this.configService.getOrThrow<string>(
+        'mail.verificationUrl',
+      ),
+      from: this.configService.getOrThrow<string>('mail.from'),
+    };
+  }
 }

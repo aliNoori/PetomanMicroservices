@@ -33,6 +33,14 @@ export interface JwtPayload {
   sub: string;
 
   /**
+   * Session identifier.
+   *
+   * Represents the refresh token family associated
+   * with the current authenticated session.
+   */
+  sid: string;
+
+  /**
    * Current tenant context.
    *
    * null means the authenticated user currently has
@@ -44,7 +52,7 @@ export interface JwtPayload {
    * - user without tenant membership
    * - user before tenant selection
    */
-  tenantId: string|null;
+  tenantId: string | null;
 
   /**
    * User roles available in the current context.
