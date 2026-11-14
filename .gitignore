@@ -37,3 +37,6 @@ Thumbs.db
 # Private keys
 **/keys/private.pem
 **/keys/*.key
+
+# Local uploaded files
+/services/auth/storage/

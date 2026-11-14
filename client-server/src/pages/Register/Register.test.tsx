@@ -63,11 +63,12 @@ describe("RegisterPage", () => {
 
     vi.mocked(authService.register).mockResolvedValue({
       id: "user-123",
-      email: "user@example.com",
-      firstName: "Ali",
-      lastName: "Noori",
+      email: "test@example.com",
+      firstName: "Test",
+      lastName: "User",
       isActive: true,
       isEmailVerified: false,
+      avatarUrl: null,
       tenantMemberships: [],
     });
 
@@ -78,9 +79,7 @@ describe("RegisterPage", () => {
     await user.type(screen.getByLabelText(/email/i), "user@example.com");
     await user.type(screen.getByLabelText(/password/i), "password123");
 
-    await user.click(
-      screen.getByRole("button", { name: /create account/i }),
-    );
+    await user.click(screen.getByRole("button", { name: /create account/i }));
 
     expect(authService.register).toHaveBeenCalledWith({
       firstName: "Ali",
@@ -114,9 +113,7 @@ describe("RegisterPage", () => {
     await user.type(screen.getByLabelText(/email/i), "existing@example.com");
     await user.type(screen.getByLabelText(/password/i), "password123");
 
-    await user.click(
-      screen.getByRole("button", { name: /create account/i }),
-    );
+    await user.click(screen.getByRole("button", { name: /create account/i }));
 
     expect(
       await screen.findByText(/an account with this email already exists/i),
@@ -142,9 +139,7 @@ describe("RegisterPage", () => {
     await user.type(screen.getByLabelText(/email/i), "user@example.com");
     await user.type(screen.getByLabelText(/password/i), "password123");
 
-    await user.click(
-      screen.getByRole("button", { name: /create account/i }),
-    );
+    await user.click(screen.getByRole("button", { name: /create account/i }));
 
     expect(
       await screen.findByRole("heading", {
@@ -176,9 +171,7 @@ describe("RegisterPage", () => {
     await user.type(screen.getByLabelText(/email/i), "user@example.com");
     await user.type(screen.getByLabelText(/password/i), "password123");
 
-    await user.click(
-      screen.getByRole("button", { name: /create account/i }),
-    );
+    await user.click(screen.getByRole("button", { name: /create account/i }));
 
     await user.click(
       await screen.findByRole("button", {

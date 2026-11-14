@@ -92,6 +92,23 @@ export const authProfileRoute = GatewayRouteFactory.proxy(
 );
 
 /**
+ * Upload or replace the authenticated user's profile avatar.
+ *
+ * Security:
+ * - Requires an authenticated User JWT.
+ * - The Gateway derives the user identity from the verified token.
+ * - The Auth service uses the trusted Internal JWT identity.
+ * - Multipart file data is streamed to the Auth service.
+ */
+export const authUpdateProfileAvatarRoute = GatewayRouteFactory.proxy(
+  'PATCH',
+  '/profile/avatar',
+  GatewayTarget.AUTH,
+  '/api/auth/profile/avatar',
+  GatewayAuthMode.JWT,
+);
+
+/**
  * Refresh the current authentication session.
  *
  * Security:

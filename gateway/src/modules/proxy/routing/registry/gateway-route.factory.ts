@@ -16,6 +16,7 @@ export class GatewayRouteFactory {
    *
    * `permissions` defines Gateway-level authorization.
    */
+
   static proxy(
     method: string,
     path: string,
@@ -23,6 +24,8 @@ export class GatewayRouteFactory {
     downstreamPath: string,
     auth: GatewayAuthMode = GatewayAuthMode.JWT,
     permissions: readonly string[] = [],
+    responseType: 'json' | 'binary' = 'json',
+    applyServicePrefix: boolean = true,
   ): GatewayRoute {
     return {
       method: method.toUpperCase(),
@@ -32,6 +35,8 @@ export class GatewayRouteFactory {
       downstreamPath,
       auth,
       permissions,
+      responseType,
+      applyServicePrefix,
     };
   }
 

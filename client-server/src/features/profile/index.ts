@@ -11,6 +11,7 @@
 export {
   ProfileHeader,
   ProfileSummary,
+  ProfileAvatarEditor,
 } from "./components";
 
 

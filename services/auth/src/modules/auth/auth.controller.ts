@@ -10,6 +10,8 @@ import {
   ParseUUIDPipe,
   UnauthorizedException,
   UseGuards,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
 
 import {
@@ -30,6 +32,12 @@ import { RefreshTokenDto } from './dtos/refresh-token.dto';
 
 import { AUTH_ERROR_CODES } from '../../common/constants/auth-error-codes.constants';
 import { RejectTenantDto } from './dtos/reject-tenant.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
+
+interface AvatarUploadFile {
+  readonly buffer: Buffer;
+  readonly size: number;
+}
 
 @Controller('auth')
 export class AuthController {
@@ -61,8 +69,19 @@ export class AuthController {
   // ============================================================
   @UseGuards(InternalJwtGuard)
   @Post('register')
-  register(@Body() dto: RegisterUserDto) {
-    return this.authService.register(dto);
+  @UseInterceptors(
+    FileInterceptor('avatar', {
+      limits: {
+        fileSize: 5 * 1024 * 1024,
+        files: 1,
+      },
+    }),
+  )
+  register(
+    @Body() dto: RegisterUserDto,
+    @UploadedFile() file?: AvatarUploadFile,
+  ) {
+    return this.authService.register(dto, file);
   }
 
   // ============================================================
@@ -114,6 +133,36 @@ export class AuthController {
     }
 
     return this.authService.changePassword(userId, dto);
+  }
+
+  // ============================================================
+  // Update Profile Avatar
+  // ============================================================
+
+  @UseGuards(InternalJwtGuard)
+  @Patch('profile/avatar')
+  @UseInterceptors(
+    FileInterceptor('avatar', {
+      limits: {
+        fileSize: 5 * 1024 * 1024,
+        files: 1,
+      },
+    }),
+  )
+  updateProfileAvatar(
+    @UploadedFile() file: AvatarUploadFile,
+    @Req() request: InternalAuthenticatedRequest,
+  ) {
+    const userId = request.internalAuth?.userId;
+
+    if (!userId) {
+      throw new UnauthorizedException({
+        code: AUTH_ERROR_CODES.UNAUTHORIZED,
+        message: 'Authenticated user identity is missing.',
+      });
+    }
+
+    return this.authService.updateProfileAvatar(userId, file);
   }
 
   // ============================================================

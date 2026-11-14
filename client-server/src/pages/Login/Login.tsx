@@ -16,7 +16,7 @@ import type {
 import { LoginForm } from "./components";
 
 const DEFAULT_RETURN_TO: ReturnToLocation = {
-  pathname: "/",
+  pathname: "/profile",
 };
 
 /**
@@ -52,6 +52,28 @@ function getSafeReturnTo(
   } catch {
     return DEFAULT_RETURN_TO;
   }
+}
+
+/**
+ * Prevent regular users from returning to system-admin routes.
+ */
+function getUserReturnTo(value: ReturnToLocation): ReturnToLocation {
+  const pathname = value.pathname;
+
+  const restrictedPaths = [
+    "/admin",
+    "/403",
+    "/404",
+    "/login",
+    "/register",
+    "/auth/select-tenant",
+  ];
+
+  const isRestricted = restrictedPaths.some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`),
+  );
+
+  return isRestricted ? DEFAULT_RETURN_TO : value;
 }
 
 export function LoginPage() {
@@ -96,7 +118,7 @@ export function LoginPage() {
       navigate("/auth/select-tenant", {
         replace: true,
         state: {
-          returnTo,
+          returnTo: getUserReturnTo(returnTo),
         } satisfies AuthNavigationState,
       });
     } catch (error) {

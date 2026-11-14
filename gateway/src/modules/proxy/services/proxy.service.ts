@@ -40,6 +40,18 @@ interface ErrorWithCode {
   code?: string;
 }
 
+export interface ProxyBinaryResponse {
+  readonly type: 'binary';
+  readonly data: Buffer;
+  readonly status: number;
+  readonly headers: {
+    readonly contentType?: string;
+    readonly contentLength?: string;
+    readonly cacheControl?: string;
+    readonly contentDisposition?: string;
+  };
+}
+
 @Injectable()
 export class ProxyService {
   constructor(
@@ -68,6 +80,8 @@ export class ProxyService {
     console.log(`[ProxyService] ${method.toUpperCase()} ${url}`);
 
     try {
+      const isBinary = route.responseType === 'binary';
+
       const response = await firstValueFrom(
         this.httpService.request({
           method: method.toUpperCase(),
@@ -76,9 +90,27 @@ export class ProxyService {
           data: body,
           params: query,
           timeout: service.timeoutMs,
+          maxBodyLength: 6 * 1024 * 1024,
+          responseType: isBinary ? 'arraybuffer' : 'json',
         }),
       );
 
+      if (isBinary) {
+        return {
+          type: 'binary',
+          data: Buffer.from(response.data),
+          status: response.status,
+          headers: {
+            contentType: response.headers['content-type']?.toString(),
+            contentLength: response.headers['content-length']?.toString(),
+            cacheControl: response.headers['cache-control']?.toString(),
+            contentDisposition:
+              response.headers['content-disposition']?.toString(),
+          },
+        } satisfies ProxyBinaryResponse;
+      }
+
+      // Preserve the existing JSON response contract.
       return response.data;
     } catch (error: unknown) {
       // console.error(

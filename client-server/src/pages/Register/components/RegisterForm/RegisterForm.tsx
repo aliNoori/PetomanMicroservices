@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 
 import { Input, Button, Alert, Card } from "@/components/common";
@@ -14,6 +14,21 @@ export function RegisterForm({ loading, error, onSubmit }: RegisterFormProps) {
     firstName: "",
     lastName: "",
   });
+
+  const [avatar, setAvatar] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!avatar) {
+      setAvatarPreview(null);
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(avatar);
+    setAvatarPreview(previewUrl);
+
+    return () => URL.revokeObjectURL(previewUrl);
+  }, [avatar]);
 
   function handleChange(field: keyof RegisterUserRequest, value: string) {
     setForm((previous) => ({
@@ -35,7 +50,7 @@ export function RegisterForm({ loading, error, onSubmit }: RegisterFormProps) {
       ...(lastName ? { lastName } : {}),
     };
 
-    await onSubmit(payload);
+    await onSubmit(payload, avatar ?? undefined);
   }
 
   return (
@@ -75,6 +90,54 @@ export function RegisterForm({ loading, error, onSubmit }: RegisterFormProps) {
             placeholder="Your last name"
             autoComplete="family-name"
           />
+
+          <div className="space-y-3">
+            <label className="block text-sm font-medium text-text-primary">
+              Profile picture (optional)
+            </label>
+
+            <div className="flex items-center gap-4">
+              {avatarPreview ? (
+                <img
+                  src={avatarPreview}
+                  alt="Avatar preview"
+                  className="h-16 w-16 rounded-full object-cover"
+                />
+              ) : (
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary-soft text-xl font-semibold text-primary">
+                  ?
+                </div>
+              )}
+
+              <div className="min-w-0 flex-1 space-y-2">
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  disabled={loading}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0] ?? null;
+                    setAvatar(file);
+                  }}
+                  className="block w-full text-sm text-text-secondary file:mr-3 file:rounded-lg file:border-0 file:bg-primary-soft file:px-3 file:py-2 file:font-medium file:text-primary"
+                />
+
+                {avatar && (
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={() => setAvatar(null)}
+                    className="text-sm text-red-500 hover:underline"
+                  >
+                    Remove picture
+                  </button>
+                )}
+
+                <p className="text-xs text-text-secondary">
+                  JPEG, PNG or WebP. Maximum size: 5 MB.
+                </p>
+              </div>
+            </div>
+          </div>
 
           <Input
             label="Email"

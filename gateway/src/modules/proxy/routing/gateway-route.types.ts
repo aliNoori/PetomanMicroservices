@@ -9,7 +9,7 @@ export enum GatewayRouteType {
 export enum GatewayTarget {
   AUTH = 'AUTH',
   MARKET = 'MARKET',
-  FINANCIAL='FINANCIAL',
+  FINANCIAL = 'FINANCIAL',
   VET = 'VET',
   PHARMACY = 'PHARMACY',
 }
@@ -57,8 +57,7 @@ interface GatewayRouteBase {
 /**
  * Proxy route.
  */
-export interface GatewayProxyRoute
-  extends GatewayRouteBase {
+export interface GatewayProxyRoute extends GatewayRouteBase {
   type: GatewayRouteType.PROXY;
 
   /**
@@ -70,13 +69,28 @@ export interface GatewayProxyRoute
    * Explicit downstream path template.
    */
   downstreamPath: string;
+
+  /**
+   * Expected downstream response format.
+   *
+   * JSON is the default response format.
+   * Binary is used for files and image content.
+   */
+  responseType?: 'json' | 'binary';
+
+  /**
+   * Whether the target service prefix should be applied
+   * to this public Gateway route.
+   *
+   * Defaults to true.
+   */
+  applyServicePrefix?: boolean;
 }
 
 /**
  * Aggregation route.
  */
-export interface GatewayAggregationRoute
-  extends GatewayRouteBase {
+export interface GatewayAggregationRoute extends GatewayRouteBase {
   type: GatewayRouteType.AGGREGATION;
 
   /**
@@ -88,9 +102,7 @@ export interface GatewayAggregationRoute
 /**
  * Central Gateway Route definition.
  */
-export type GatewayRoute =
-  | GatewayProxyRoute
-  | GatewayAggregationRoute;
+export type GatewayRoute = GatewayProxyRoute | GatewayAggregationRoute;
 
 /**
  * Result of matching an incoming request against

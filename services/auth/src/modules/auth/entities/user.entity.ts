@@ -60,6 +60,14 @@ export class UserEntity {
   lastName!: string | null;
 
   @Column({
+    name: 'avatar_key',
+    type: 'varchar',
+    length: 500,
+    nullable: true,
+  })
+  avatarKey!: string | null;
+
+  @Column({
     name: 'is_active',
     type: 'boolean',
     default: true,

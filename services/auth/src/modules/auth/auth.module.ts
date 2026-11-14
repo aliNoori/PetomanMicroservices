@@ -25,6 +25,7 @@ import { DeviceInfoService } from './device-info.service';
 import { RedisModule } from '@petoman/infrastructure';
 import { EmailVerificationTokenEntity } from './entities/email-verification-token.entity';
 import { EmailVerificationTokenRepository } from './repositories/email-verification-token.repository';
+import { UserAvatarService } from './user-avatar.service';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { EmailVerificationTokenRepository } from './repositories/email-verificat
 
   providers: [
     AuthService,
+    UserAvatarService,
     DeviceInfoService,
 
     InternalJwtService,
@@ -75,6 +77,6 @@ import { EmailVerificationTokenRepository } from './repositories/email-verificat
     },
   ],
 
-  exports: [AuthService],
+  exports: [AuthService, InternalJwtService, INTERNAL_JWT_OPTIONS],
 })
 export class AuthModule {}

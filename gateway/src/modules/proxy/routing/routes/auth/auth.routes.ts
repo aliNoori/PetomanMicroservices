@@ -12,6 +12,7 @@ import {
   authVerifyEmailRoute,
   authResendVerificationEmailRoute,
   authPendingTenantsRoute,
+  authUpdateProfileAvatarRoute,
 } from './users.route';
 
 import{
@@ -30,6 +31,8 @@ import {
   authTenantMembershipApproveRoute,
   authTenantMembershipRejectRoute,
 } from './tenants.route';
+
+import { storageDownloadRoute } from '../storage/storage.route';
 
 /**
  * All Gateway routes exposed by the Auth service.
@@ -52,6 +55,7 @@ export const authRoutes = [
   authLoginRoute,
   authLogoutRoute,
   authProfileRoute,
+  authUpdateProfileAvatarRoute,
   authUsersRoute,
   authRefreshRoute,
   authSessionsRoute,
@@ -86,4 +90,10 @@ export const authRoutes = [
 
   authTenantApproveRoute,
   authTenantRejectRoute,
+
+    // ============================================================
+  // Storage
+  // ============================================================
+
+  storageDownloadRoute,
 ];

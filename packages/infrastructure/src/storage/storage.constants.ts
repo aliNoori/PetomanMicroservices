@@ -1,0 +1,3 @@
+export const STORAGE_OPTIONS = Symbol('STORAGE_OPTIONS');
+
+export const STORAGE_PROVIDER = Symbol('STORAGE_PROVIDER');

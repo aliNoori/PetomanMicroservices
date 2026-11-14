@@ -1,10 +1,6 @@
-import {
-  Injectable,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
-import {
-  ConfigService,
-} from '@nestjs/config';
+import { ConfigService } from '@nestjs/config';
 
 import {
   GatewayRoute,
@@ -13,25 +9,15 @@ import {
   GatewayTarget,
 } from '../gateway-route.types';
 
-import {
-  ParameterizedRouteTrie,
-} from './parameterized-route-trie';
+import { ParameterizedRouteTrie } from './parameterized-route-trie';
 
-import {
-  authRoutes,
-} from '../routes/auth/auth.routes';
+import { authRoutes } from '../routes/auth/auth.routes';
 
-import {
-  marketRoutes,
-} from '../routes/market/market.routes';
+import { marketRoutes } from '../routes/market/market.routes';
 
-import {
-  vetRoutes,
-} from '../routes/vet/vet.routes';
+import { vetRoutes } from '../routes/vet/vet.routes';
 
-import {
-  aggregationRoutes,
-} from '../routes/aggregation/aggregation.routes';
+import { aggregationRoutes } from '../routes/aggregation/aggregation.routes';
 
 interface ServiceConfig {
   readonly prefix: string;
@@ -71,18 +57,14 @@ export class GatewayRouteRegistry {
   /**
    * Static routes use O(1) Map lookup.
    */
-  private readonly staticRoutes =
-    new Map<string, GatewayRoute>();
+  private readonly staticRoutes = new Map<string, GatewayRoute>();
 
   /**
    * Parameterized routes use Trie matching.
    */
-  private readonly parameterizedRouteTrie =
-    new ParameterizedRouteTrie();
+  private readonly parameterizedRouteTrie = new ParameterizedRouteTrie();
 
-  constructor(
-    private readonly configService: ConfigService,
-  ) {
+  constructor(private readonly configService: ConfigService) {
     const declaredRoutes: GatewayRoute[] = [
       ...authRoutes,
       ...marketRoutes,
@@ -90,11 +72,7 @@ export class GatewayRouteRegistry {
       ...aggregationRoutes,
     ];
 
-    this.routes =
-      declaredRoutes.map(
-        route =>
-          this.resolveRoute(route),
-      );
+    this.routes = declaredRoutes.map((route) => this.resolveRoute(route));
 
     this.registerRoutes();
   }
@@ -110,26 +88,17 @@ export class GatewayRouteRegistry {
    * Static routes therefore always have priority
    * over parameterized routes.
    */
-  find(
-    method: string,
-    path: string,
-  ): GatewayRouteMatch | undefined {
-    const normalizedMethod =
-      method.toUpperCase();
+  find(method: string, path: string): GatewayRouteMatch | undefined {
+    const normalizedMethod = method.toUpperCase();
 
-    const normalizedPath =
-      this.normalizePath(path);
+    const normalizedPath = this.normalizePath(path);
 
     /*
      * Static route lookup.
      */
-    const staticRoute =
-      this.staticRoutes.get(
-        this.createKey(
-          normalizedMethod,
-          normalizedPath,
-        ),
-      );
+    const staticRoute = this.staticRoutes.get(
+      this.createKey(normalizedMethod, normalizedPath),
+    );
 
     if (staticRoute) {
       return {
@@ -141,10 +110,7 @@ export class GatewayRouteRegistry {
     /*
      * Parameterized route lookup.
      */
-    return this.parameterizedRouteTrie.match(
-      normalizedMethod,
-      normalizedPath,
-    );
+    return this.parameterizedRouteTrie.match(normalizedMethod, normalizedPath);
   }
 
   /**
@@ -154,48 +120,27 @@ export class GatewayRouteRegistry {
    * registered internally in the Map and Trie.
    */
   getAll(): GatewayRoute[] {
-    return [
-      ...this.routes,
-    ];
+    return [...this.routes];
   }
 
   /**
    * Register all resolved Gateway routes.
    */
   private registerRoutes(): void {
-    for (
-      const route of this.routes
-    ) {
-      if (
-        this.isParameterized(
-          route.path,
-        )
-      ) {
-        this.parameterizedRouteTrie.insert(
-          route,
-        );
+    for (const route of this.routes) {
+      if (this.isParameterized(route.path)) {
+        this.parameterizedRouteTrie.insert(route);
 
         continue;
       }
 
-      const key =
-        this.createKey(
-          route.method,
-          route.path,
-        );
+      const key = this.createKey(route.method, route.path);
 
-      if (
-        this.staticRoutes.has(key)
-      ) {
-        throw new Error(
-          `Duplicate gateway route: ${key}`,
-        );
+      if (this.staticRoutes.has(key)) {
+        throw new Error(`Duplicate gateway route: ${key}`);
       }
 
-      this.staticRoutes.set(
-        key,
-        route,
-      );
+      this.staticRoutes.set(key, route);
     }
   }
 
@@ -229,61 +174,42 @@ export class GatewayRouteRegistry {
    *
    * /api/orders
    */
-  private resolveRoute(
-    route: GatewayRoute,
-  ): GatewayRoute {
-    if (
-      route.type !==
-      GatewayRouteType.PROXY
-    ) {
+  private resolveRoute(route: GatewayRoute): GatewayRoute {
+    if (route.type !== GatewayRouteType.PROXY) {
       return route;
     }
 
     if (!route.target) {
-      throw new Error(
-        `Proxy route "${route.path}" does not define a target.`,
-      );
+      throw new Error(`Proxy route "${route.path}" does not define a target.`);
     }
 
-    const service =
-      this.getServiceConfig(
-        route.target,
-      );
+    const service = this.getServiceConfig(route.target);
 
     return {
       ...route,
 
       path:
-        this.joinPaths(
-          service.prefix,
-          route.path,
-        ),
+        route.applyServicePrefix === false
+          ? this.normalizePath(route.path)
+          : this.joinPaths(service.prefix, route.path),
     };
   }
 
   /**
    * Resolve ServiceConfig from GatewayTarget.
    */
-  private getServiceConfig(
-    target: GatewayTarget,
-  ): ServiceConfig {
-    const serviceName =
-      this.targetToServiceName(
-        target,
-      );
+  private getServiceConfig(target: GatewayTarget): ServiceConfig {
+    const serviceName = this.targetToServiceName(target);
 
-    const config =
-      this.configService.get<ServiceConfig>(
-        `services.${serviceName}`,
-        {
-          infer: true,
-        },
-      );
+    const config = this.configService.get<ServiceConfig>(
+      `services.${serviceName}`,
+      {
+        infer: true,
+      },
+    );
 
     if (!config) {
-      throw new Error(
-        `Service configuration not found: ${serviceName}`,
-      );
+      throw new Error(`Service configuration not found: ${serviceName}`);
     }
 
     return config;
@@ -293,9 +219,7 @@ export class GatewayRouteRegistry {
    * Map logical Gateway target
    * to central service configuration name.
    */
-  private targetToServiceName(
-    target: GatewayTarget,
-  ): string {
+  private targetToServiceName(target: GatewayTarget): string {
     switch (target) {
       case GatewayTarget.AUTH:
         return 'auth';
@@ -310,44 +234,22 @@ export class GatewayRouteRegistry {
         return 'pharmacy';
 
       default:
-        throw new Error(
-          `Unsupported gateway target: ${target}`,
-        );
+        throw new Error(`Unsupported gateway target: ${target}`);
     }
   }
 
   /**
    * Join URL path segments safely.
    */
-  private joinPaths(
-    prefix: string,
-    path: string,
-  ): string {
-    return (
-      `/${prefix}/${path}`
-    )
-      .replace(
-        /\/+/g,
-        '/',
-      )
-      .replace(
-        /\/+$/,
-        '',
-      ) || '/';
+  private joinPaths(prefix: string, path: string): string {
+    return `/${prefix}/${path}`.replace(/\/+/g, '/').replace(/\/+$/, '') || '/';
   }
 
   /**
    * Determine whether a route is parameterized.
    */
-  private isParameterized(
-    path: string,
-  ): boolean {
-    return path
-      .split('/')
-      .some(
-        segment =>
-          segment.startsWith(':'),
-      );
+  private isParameterized(path: string): boolean {
+    return path.split('/').some((segment) => segment.startsWith(':'));
   }
 
   /**
@@ -362,27 +264,15 @@ export class GatewayRouteRegistry {
    *
    * /api/market/orders
    */
-  private normalizePath(
-    path: string,
-  ): string {
+  private normalizePath(path: string): string {
     if (!path) {
       return '/';
     }
 
-    const normalized =
-      `/${path}`
-        .replace(
-          /\/+/g,
-          '/',
-        );
+    const normalized = `/${path}`.replace(/\/+/g, '/');
 
-    if (
-      normalized.length > 1
-    ) {
-      return normalized.replace(
-        /\/+$/,
-        '',
-      );
+    if (normalized.length > 1) {
+      return normalized.replace(/\/+$/, '');
     }
 
     return normalized;
@@ -391,12 +281,7 @@ export class GatewayRouteRegistry {
   /**
    * Create static route lookup key.
    */
-  private createKey(
-    method: string,
-    path: string,
-  ): string {
-    return (
-      `${method.toUpperCase()} ${path}`
-    );
+  private createKey(method: string, path: string): string {
+    return `${method.toUpperCase()} ${path}`;
   }
 }

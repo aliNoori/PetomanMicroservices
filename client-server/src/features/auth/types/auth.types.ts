@@ -8,11 +8,13 @@ export interface AuthUser {
   isEmailVerified: boolean;
   emailVerifiedAt: string | null;
 
+  avatarUrl: string | null;
+
   systemRoles: string[];
   tenantMemberships: unknown[];
   tenantRoles: unknown[];
 
-  createdAt:string
+  createdAt: string;
 }
 
 export interface LoginRequest {
@@ -106,5 +108,6 @@ export interface RegisterUserResponse {
   lastName: string | null;
   isActive: boolean;
   isEmailVerified: boolean;
+  avatarUrl: string | null;
   tenantMemberships: unknown[];
 }

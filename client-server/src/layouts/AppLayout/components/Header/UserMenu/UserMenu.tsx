@@ -1,21 +1,12 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useRef, useState } from "react";
 
-import {
-  useNavigate,
-} from "react-router-dom";
+import { UserAvatar } from "@/features/profile/components/UserAvatar/UserAvatar";
 
-import {
-  useAuth,
-} from "@/features/auth";
+import { useNavigate } from "react-router-dom";
 
-import type {
-  UserMenuProps,
-} from "./UserMenu.types";
+import { useAuth } from "@/features/auth";
 
+import type { UserMenuProps } from "./UserMenu.types";
 
 /**
  * User menu.
@@ -41,35 +32,16 @@ import type {
  * - Token storage.
  * - Authorization rules.
  */
-export function UserMenu(
-  {
-    children,
-  }: UserMenuProps,
-) {
-
-  const {
-    user,
-    logout,
-  } = useAuth();
-
+export function UserMenu({ children }: UserMenuProps) {
+  const { user, logout } = useAuth();
 
   const navigate = useNavigate();
 
+  const [isOpen, setIsOpen] = useState(false);
 
-  const [
-    isOpen,
-    setIsOpen,
-  ] = useState(false);
-
-
-  const [
-    isLoggingOut,
-    setIsLoggingOut,
-  ] = useState(false);
-
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
-
 
   /**
    * Resolve the user's display name.
@@ -78,15 +50,9 @@ export function UserMenu(
    * Fall back to email when no name exists.
    */
   const fullName =
-    [
-      user?.firstName,
-      user?.lastName,
-    ]
-      .filter(Boolean)
-      .join(" ") ||
+    [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
     user?.email ||
     "User";
-
 
   /**
    * Resolve the avatar fallback character.
@@ -102,67 +68,39 @@ export function UserMenu(
     "U"
   ).toUpperCase();
 
-
   /**
    * Close the dropdown when the user clicks
    * outside the UserMenu boundary.
    */
   useEffect(() => {
-
     if (!isOpen) {
       return;
     }
 
-
-    const handlePointerDown = (
-      event: MouseEvent,
-    ) => {
-
+    const handlePointerDown = (event: MouseEvent) => {
       const target = event.target as Node;
 
-
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(target)
-      ) {
-
+      if (containerRef.current && !containerRef.current.contains(target)) {
         setIsOpen(false);
-
       }
-
     };
 
-
-    document.addEventListener(
-      "mousedown",
-      handlePointerDown,
-    );
-
+    document.addEventListener("mousedown", handlePointerDown);
 
     return () => {
-
-      document.removeEventListener(
-        "mousedown",
-        handlePointerDown,
-      );
-
+      document.removeEventListener("mousedown", handlePointerDown);
     };
-
   }, [isOpen]);
-
 
   /**
    * Navigate to the profile page
    * and close the dropdown.
    */
   const handleProfile = () => {
-
     setIsOpen(false);
 
     navigate("/profile");
-
   };
-
 
   /**
    * Execute logout through the authentication
@@ -172,37 +110,23 @@ export function UserMenu(
    * unauthenticated users to the login page.
    */
   const handleLogout = async () => {
-
     if (isLoggingOut) {
       return;
     }
 
-
     setIsLoggingOut(true);
 
-
     try {
-
       await logout();
 
       setIsOpen(false);
-
     } finally {
-
       setIsLoggingOut(false);
-
     }
-
   };
 
-
   return (
-
-    <div
-      ref={containerRef}
-      className="relative min-w-0"
-    >
-
+    <div ref={containerRef} className="relative min-w-0">
       <button
         type="button"
         onClick={() => setIsOpen((open) => !open)}
@@ -228,36 +152,18 @@ export function UserMenu(
           sm:px-2
         "
       >
-
         {/* Avatar */}
 
-        <div
-          className="
-            flex
-            h-9
-            w-9
-            shrink-0
-            items-center
-            justify-center
-            rounded-full
-            bg-primary-soft
-            text-sm
-            font-semibold
-            text-primary
-          "
-          aria-hidden="true"
-        >
-
-          {avatarInitial}
-
-        </div>
-
+        <UserAvatar
+          avatarUrl={user?.avatarUrl}
+          fallback={avatarInitial}
+          size="sm"
+        />
 
         {/* User identity.
             Hidden on mobile to prevent header overflow. */}
 
         <div className="hidden min-w-0 sm:block">
-
           <p
             className="
               max-w-32
@@ -268,11 +174,8 @@ export function UserMenu(
               lg:max-w-48
             "
           >
-
             {fullName}
-
           </p>
-
 
           <p
             className="
@@ -283,13 +186,9 @@ export function UserMenu(
               lg:max-w-56
             "
           >
-
             {user?.email ?? "No email available"}
-
           </p>
-
         </div>
-
 
         {/* Dropdown indicator */}
 
@@ -302,7 +201,6 @@ export function UserMenu(
           fill="currentColor"
           aria-hidden="true"
         >
-
           <path
             fillRule="evenodd"
             d="
@@ -318,17 +216,12 @@ export function UserMenu(
             "
             clipRule="evenodd"
           />
-
         </svg>
-
       </button>
-
 
       {children}
 
-
       {isOpen && (
-
         <div
           role="menu"
           aria-label="User menu"
@@ -347,7 +240,6 @@ export function UserMenu(
             shadow-lg
           "
         >
-
           {/* User summary */}
 
           <div
@@ -362,31 +254,13 @@ export function UserMenu(
               py-3
             "
           >
-
-            <div
-              className="
-                flex
-                h-10
-                w-10
-                shrink-0
-                items-center
-                justify-center
-                rounded-full
-                bg-primary-soft
-                text-sm
-                font-semibold
-                text-primary
-              "
-              aria-hidden="true"
-            >
-
-              {avatarInitial}
-
-            </div>
-
+            <UserAvatar
+              avatarUrl={user?.avatarUrl}
+              fallback={avatarInitial}
+              size="md"
+            />
 
             <div className="min-w-0">
-
               <p
                 className="
                   truncate
@@ -395,11 +269,8 @@ export function UserMenu(
                   text-text-primary
                 "
               >
-
                 {fullName}
-
               </p>
-
 
               <p
                 className="
@@ -408,20 +279,14 @@ export function UserMenu(
                   text-text-secondary
                 "
               >
-
                 {user?.email ?? "No email available"}
-
               </p>
-
             </div>
-
           </div>
-
 
           {/* Menu items */}
 
           <div className="p-1">
-
             <button
               type="button"
               role="menuitem"
@@ -444,7 +309,6 @@ export function UserMenu(
                 focus:ring-primary/30
               "
             >
-
               <svg
                 className="h-4 w-4 shrink-0 text-text-secondary"
                 viewBox="0 0 24 24"
@@ -455,22 +319,12 @@ export function UserMenu(
                 strokeLinejoin="round"
                 aria-hidden="true"
               >
-
                 <path d="M20 21a8 8 0 0 0-16 0" />
 
-                <circle
-                  cx="12"
-                  cy="7"
-                  r="4"
-                />
-
+                <circle cx="12" cy="7" r="4" />
               </svg>
-
-
               Profile
-
             </button>
-
 
             <button
               type="button"
@@ -498,7 +352,6 @@ export function UserMenu(
                 disabled:opacity-50
               "
             >
-
               <svg
                 className="h-4 w-4 shrink-0"
                 viewBox="0 0 24 24"
@@ -509,36 +362,18 @@ export function UserMenu(
                 strokeLinejoin="round"
                 aria-hidden="true"
               >
-
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
 
                 <polyline points="16 17 21 12 16 7" />
 
-                <line
-                  x1="21"
-                  y1="12"
-                  x2="9"
-                  y2="12"
-                />
-
+                <line x1="21" y1="12" x2="9" y2="12" />
               </svg>
 
-
-              {isLoggingOut
-                ? "Logging out..."
-                : "Logout"
-              }
-
+              {isLoggingOut ? "Logging out..." : "Logout"}
             </button>
-
           </div>
-
         </div>
-
       )}
-
     </div>
-
   );
-
 }

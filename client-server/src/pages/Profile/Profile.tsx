@@ -1,18 +1,12 @@
-import {
-  NavLink,
-} from "react-router-dom";
+import { NavLink } from "react-router-dom";
 
-
-import {
-  useAuth,
-} from "@/features/auth";
-
+import { useAuth } from "@/features/auth";
 
 import {
   ProfileHeader,
   ProfileSummary,
+  ProfileAvatarEditor,
 } from "@/features/profile";
-
 
 /**
  * Profile page composition.
@@ -24,29 +18,19 @@ import {
  * The page only consumes the public auth contract.
  */
 export function ProfilePage() {
-
-  const {
-    user,
-  } = useAuth();
-
+  const { user } = useAuth();
 
   if (!user) {
-
     return null;
-
   }
 
-
   return (
-
     <div className="mx-auto w-full max-w-5xl space-y-8">
-
-
       {/* Profile header */}
-      <ProfileHeader
-        user={user}
-      />
+      <ProfileHeader user={user} />
 
+      {/* Profile avatar editor */}
+      <ProfileAvatarEditor />
 
       {/* Profile navigation */}
       <nav
@@ -58,7 +42,6 @@ export function ProfilePage() {
           border-border
         "
       >
-
         <NavLink
           to="/profile"
           end
@@ -74,11 +57,8 @@ export function ProfilePage() {
             ].join(" ")
           }
         >
-
           Profile
-
         </NavLink>
-
 
         <NavLink
           to="/profile/settings"
@@ -94,22 +74,12 @@ export function ProfilePage() {
             ].join(" ")
           }
         >
-
           Settings
-
         </NavLink>
-
       </nav>
 
-
       {/* Profile information */}
-      <ProfileSummary
-        user={user}
-      />
-
-
+      <ProfileSummary user={user} />
     </div>
-
   );
-
 }

@@ -17,9 +17,36 @@ import type {
 } from "../types/auth.types";
 
 class AuthService {
-  async register(payload: RegisterUserRequest): Promise<RegisterUserResponse> {
-    return apiClient.post<RegisterUserResponse>("/auth/register", payload, {
+  async register(
+    payload: RegisterUserRequest,
+    avatar?: File,
+  ): Promise<RegisterUserResponse> {
+    if (!avatar) {
+      return apiClient.post<RegisterUserResponse>("/auth/register", payload, {
+        skipAuthRefresh: true,
+      });
+    }
+
+    const formData = new FormData();
+
+    formData.append("email", payload.email);
+    formData.append("password", payload.password);
+
+    if (payload.firstName) {
+      formData.append("firstName", payload.firstName);
+    }
+
+    if (payload.lastName) {
+      formData.append("lastName", payload.lastName);
+    }
+
+    formData.append("avatar", avatar);
+
+    return apiClient.post<RegisterUserResponse>("/auth/register", formData, {
       skipAuthRefresh: true,
+      headers: {
+        "Content-Type": undefined,
+      },
     });
   }
   /**
@@ -66,6 +93,25 @@ class AuthService {
    */
   async getMe(): Promise<AuthUser> {
     return apiClient.get<AuthUser>("/auth/profile");
+  }
+
+  /**
+   * Upload or replace the authenticated user's avatar.
+   */
+  async uploadAvatar(file: File): Promise<{ avatarUrl: string | null }> {
+    const formData = new FormData();
+
+    formData.append("avatar", file);
+
+    return apiClient.patch<{ avatarUrl: string | null }>(
+      "/auth/profile/avatar",
+      formData,
+      {
+        headers: {
+          "Content-Type": undefined,
+        },
+      },
+    );
   }
 
   /**

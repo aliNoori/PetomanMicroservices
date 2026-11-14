@@ -4,15 +4,25 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1166.0",
+    "@aws-sdk/s3-request-presigner": "^3.1166.0",
     "@nestjs/common": "^11.0.0",
     "@nestjs/config": "^4.0.0",
     "ioredis": "^5.6.1",
     "nodemailer": "^10.3.1"
   },
   "devDependencies": {
-    "@types/nodemailer": "^8.0.2"
+    "@jest/globals": "^30.4.1",
+    "@types/jest": "^30.0.0",
+    "@types/nodemailer": "^8.0.2",
+    "aws-sdk-client-mock": "^4.1.0",
+    "jest": "^30.4.2",
+    "ts-jest": "^29.4.12"
   }
 }

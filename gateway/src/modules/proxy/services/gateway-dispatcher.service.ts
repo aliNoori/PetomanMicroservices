@@ -111,12 +111,14 @@ export class GatewayDispatcherService {
       authorization,
     );
 
+    const isMultipart = request.is('multipart/form-data');
+
     return this.proxyService.forward(
       route,
       request.method,
       downstreamPath,
       headers,
-      request.body,
+      isMultipart ? request : request.body,
       request.query as Record<string, unknown>,
     );
   }

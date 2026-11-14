@@ -19,12 +19,12 @@ export function RegisterPage() {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<RegistrationStatus>("idle");
 
-  async function handleRegister(payload: RegisterUserRequest) {
+  async function handleRegister(payload: RegisterUserRequest, avatar?: File) {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await authService.register(payload);
+      const response = await authService.register(payload, avatar);
 
       setEmail(response.email);
       setStatus("success");
@@ -86,14 +86,12 @@ export function RegisterPage() {
                 : "Your account was created, but we could not send the verification email."}
             </p>
 
-            <p className="break-all font-medium text-text-primary">
-              {email}
-            </p>
+            <p className="break-all font-medium text-text-primary">{email}</p>
 
             {status === "success" ? (
               <p className="text-sm text-text-secondary">
-                Please open the email and follow the verification link.
-                The link expires after 30 minutes.
+                Please open the email and follow the verification link. The link
+                expires after 30 minutes.
               </p>
             ) : (
               <div className="space-y-4">
@@ -101,9 +99,7 @@ export function RegisterPage() {
                   You can request another verification email.
                 </p>
 
-                {error && (
-                  <p className="text-sm text-red-500">{error}</p>
-                )}
+                {error && <p className="text-sm text-red-500">{error}</p>}
 
                 <Button
                   type="button"
@@ -111,9 +107,7 @@ export function RegisterPage() {
                   disabled={resending}
                   onClick={handleResendVerification}
                 >
-                  {resending
-                    ? "Sending..."
-                    : "Resend verification email"}
+                  {resending ? "Sending..." : "Resend verification email"}
                 </Button>
               </div>
             )}
@@ -134,10 +128,6 @@ export function RegisterPage() {
   }
 
   return (
-    <RegisterForm
-      loading={loading}
-      error={error}
-      onSubmit={handleRegister}
-    />
+    <RegisterForm loading={loading} error={error} onSubmit={handleRegister} />
   );
 }

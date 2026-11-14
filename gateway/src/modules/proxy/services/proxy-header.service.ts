@@ -1,3 +1,4 @@
+
 import { Injectable } from '@nestjs/common';
 import type { Request } from 'express';
 
@@ -22,6 +23,18 @@ export class ProxyHeaderService {
 
       if (value) {
         headers[headerName] = value;
+      }
+    }
+
+    const contentType = request.header('content-type');
+
+    if (contentType?.toLowerCase().startsWith('multipart/form-data')) {
+      headers['content-type'] = contentType;
+
+      const contentLength = request.header('content-length');
+
+      if (contentLength) {
+        headers['content-length'] = contentLength;
       }
     }
 

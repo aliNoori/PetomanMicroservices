@@ -17,6 +17,7 @@ import { EmailVerificationTokenRepository } from './repositories/email-verificat
 import { EmailVerificationTokenEntity } from './entities/email-verification-token.entity';
 import { MailService } from '@petoman/infrastructure';
 import { ConfigurationService } from '../../config/configuration.service';
+import { UserAvatarService } from './user-avatar.service';
 
 import {
   InternalAuthScope,
@@ -54,6 +55,7 @@ export class AuthService {
     private readonly redisService: RedisService,
     private readonly mailService: MailService,
     private readonly configurationService: ConfigurationService,
+    private readonly userAvatarService: UserAvatarService,
     private readonly emailVerificationTokenRepository: EmailVerificationTokenRepository,
 
     @InjectRepository(UserEntity)
@@ -81,7 +83,10 @@ export class AuthService {
 
   private readonly logger = new Logger(AuthService.name);
 
-  async register(dto: RegisterUserDto) {
+  async register(
+    dto: RegisterUserDto,
+    file?: { buffer: Buffer; size: number },
+  ) {
     const email = dto.email.trim().toLowerCase();
 
     const existingUser = await this.userRepository.findOne({
@@ -131,6 +136,33 @@ export class AuthService {
 
       return user;
     });
+
+    // Upload the optional avatar after the user transaction commits.
+    if (file) {
+      let avatarKey: string | null = null;
+
+      try {
+        avatarKey = await this.userAvatarService.uploadAvatar(
+          savedUser.id,
+          file,
+        );
+
+        savedUser.avatarKey = avatarKey;
+        await this.userRepository.save(savedUser);
+      } catch (error: unknown) {
+        if (avatarKey) {
+          try {
+            await this.userAvatarService.deleteAvatar(avatarKey);
+          } catch {
+            this.logger.error(
+              'Failed to clean up avatar after registration failure.',
+            );
+          }
+        }
+
+        throw error;
+      }
+    }
 
     // Build the verification link after the transaction commits.
     const verificationUrl = new URL(
@@ -187,6 +219,7 @@ export class AuthService {
       lastName: savedUser.lastName,
       isActive: savedUser.isActive,
       isEmailVerified: savedUser.isEmailVerified,
+      avatarUrl: await this.userAvatarService.getAvatarUrl(savedUser.avatarKey),
       tenantMemberships: [],
     };
   }
@@ -1236,6 +1269,8 @@ export class AuthService {
       });
     }
 
+    const avatarUrl = await this.userAvatarService.getAvatarUrl(user.avatarKey);
+
     const memberships = await this.tenantUserRepository.find({
       where: {
         userId: user.id,
@@ -1281,6 +1316,7 @@ export class AuthService {
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
+      avatarUrl,
       isActive: user.isActive,
       createdAt: user.createdAt,
       emailVerified: user.isEmailVerified,
@@ -1303,6 +1339,73 @@ export class AuthService {
 
       tenantRoles,
       //},
+    };
+  }
+
+  // ============================================================
+  // Update Profile Avatar
+  // ============================================================
+
+  async updateProfileAvatar(
+    userId: string,
+    file: { buffer: Buffer; size: number },
+  ) {
+    if (!file) {
+      throw new BadRequestException({
+        code: 'AVATAR_FILE_REQUIRED',
+        message: 'Avatar file is required.',
+      });
+    }
+
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException({
+        code: AUTH_ERROR_CODES.USER_NOT_FOUND,
+        message: 'User not found.',
+      });
+    }
+
+    if (!user.isActive) {
+      throw new UnauthorizedException({
+        code: AUTH_ERROR_CODES.USER_INACTIVE,
+        message: 'User account is inactive.',
+      });
+    }
+
+    const previousAvatarKey = user.avatarKey;
+    const newAvatarKey = await this.userAvatarService.uploadAvatar(
+      user.id,
+      file,
+    );
+
+    try {
+      user.avatarKey = newAvatarKey;
+      await this.userRepository.save(user);
+    } catch (error: unknown) {
+      try {
+        await this.userAvatarService.deleteAvatar(newAvatarKey);
+      } catch (cleanupError: unknown) {
+        this.logger.error(
+          'Failed to clean up avatar after profile update failure.',
+        );
+      }
+
+      throw error;
+    }
+
+    if (previousAvatarKey && previousAvatarKey !== newAvatarKey) {
+      try {
+        await this.userAvatarService.deleteAvatar(previousAvatarKey);
+      } catch (error: unknown) {
+        this.logger.warn('Failed to delete the previous user avatar.');
+      }
+    }
+
+    return {
+      avatarUrl: await this.userAvatarService.getAvatarUrl(newAvatarKey),
     };
   }
 
