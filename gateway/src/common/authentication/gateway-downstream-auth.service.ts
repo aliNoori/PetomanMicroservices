@@ -1,6 +1,6 @@
+
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-
 import { ROLE_SLUGS } from '../constants/roles.constants';
 
 import {
@@ -32,8 +32,10 @@ export class GatewayDownstreamAuthService {
 
     switch (authMode) {
       case GatewayAuthMode.JWT: {
-        const userId = request.user?.sub;
-        const sid = request.user?.sid;
+        const user = request.user;
+
+        const userId = user?.sub;
+        const sid = user?.sid;
 
         if (!userId || !sid) {
           throw new UnauthorizedException(
@@ -41,16 +43,22 @@ export class GatewayDownstreamAuthService {
           );
         }
 
-        const tenantId = request.user?.tenantId ?? undefined;
+        if (
+          !Array.isArray(user.roles) ||
+          !Array.isArray(user.permissions)
+        ) {
+          throw new UnauthorizedException(
+            'Authenticated user authorization context is required.',
+          );
+        }
 
-        const isGlobalScope = request.user?.roles?.includes(
-          ROLE_SLUGS.SUPER_ADMIN,
-        );
+        const tenantId = user.tenantId ?? undefined;
 
-        const scope = isGlobalScope
-          ? InternalAuthScope.GLOBAL
-          : tenantId
-            ? InternalAuthScope.TENANT
+        // Preserve the selected tenant context, including for SUPER_ADMIN users.
+        const scope = tenantId
+          ? InternalAuthScope.TENANT
+          : user.roles.includes(ROLE_SLUGS.SUPER_ADMIN)
+            ? InternalAuthScope.GLOBAL
             : InternalAuthScope.NO_TENANT;
 
         const token = this.internalJwtService.signUserToken(
@@ -58,6 +66,8 @@ export class GatewayDownstreamAuthService {
           tenantId,
           sid,
           scope,
+          user.roles,
+          user.permissions,
           options,
         );
 
@@ -72,6 +82,7 @@ export class GatewayDownstreamAuthService {
 
       default: {
         const exhaustiveCheck: never = authMode;
+
         throw new Error(
           `Unsupported gateway authentication mode: ${exhaustiveCheck}`,
         );

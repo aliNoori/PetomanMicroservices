@@ -46,6 +46,8 @@ function createAuthContext(
     user: null,
     tenants: [],
     selectedTenant: null,
+    roles: [],
+    permissions: [],
     sessionActive: false,
     loading: false,
     authenticated: false,

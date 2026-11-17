@@ -174,4 +174,78 @@ describe('TenantResolverService', () => {
       }),
     );
   });
+  it('should resolve active tenants', async () => {
+    const tenants = [
+      {
+        id: 'tenant-001',
+        name: 'Store One',
+        slug: 'store-one',
+      },
+      {
+        id: 'tenant-002',
+        name: 'Store Two',
+        slug: 'store-two',
+      },
+    ];
+
+    const fetchMock = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          success: true,
+          data: tenants,
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const result = await service.resolveActiveTenants();
+
+    expect(result).toEqual(tenants);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3001/api/tenants/active',
+      {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+          Authorization: 'Bearer test-internal-token',
+        },
+      },
+    );
+  });
+
+  it('should return an empty array when no active tenants exist', async () => {
+    jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          success: true,
+          data: [],
+        }),
+        { status: 200 },
+      ),
+    );
+
+    await expect(service.resolveActiveTenants()).resolves.toEqual([]);
+  });
+
+  it('should reject an invalid active tenants response', async () => {
+    jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          success: true,
+          data: [
+            {
+              id: 'tenant-001',
+              name: 'Store One',
+            },
+          ],
+        }),
+        { status: 200 },
+      ),
+    );
+
+    await expect(service.resolveActiveTenants()).rejects.toBeInstanceOf(
+      ServiceUnavailableException,
+    );
+  });
 });

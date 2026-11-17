@@ -1,7 +1,4 @@
-import type {
-  AuthUser,
-  TenantOption,
-} from "../types";
+import type { AuthUser, TenantOption } from "../types";
 
 export interface AuthStoreState {
   user: AuthUser | null;
@@ -15,6 +12,10 @@ export interface AuthStoreState {
   loading: boolean;
 
   authenticated: boolean;
+
+  roles: string[];
+
+  permissions: string[];
 }
 
 export const initialAuthState: AuthStoreState = {
@@ -24,4 +25,6 @@ export const initialAuthState: AuthStoreState = {
   sessionActive: false,
   loading: true,
   authenticated: false,
+  roles: [],
+  permissions: [],
 };

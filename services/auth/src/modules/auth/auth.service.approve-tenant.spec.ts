@@ -158,12 +158,19 @@ describe('AuthService.approveTenant', () => {
 
     service = new AuthService(
       { sign: jest.fn() } as any,
+      {} as any, // DeviceInfoService
       dataSource as unknown as DataSource,
+      {} as any, // RedisService
+      {} as any, // MailService
+      {} as any, // ConfigurationService
+      {} as any, // UserAvatarService
+      {} as any, // EmailVerificationTokenRepository
       userRepository as any,
       tenantRepository as any,
       tenantUserRepository as any,
       userRoleRepository as any,
       rolePermissionRepository as any,
+      {} as any, // RefreshTokenRepository
     );
   });
 
@@ -365,21 +372,20 @@ describe('AuthService.approveTenant', () => {
 
     const result = await service.approveTenant(requester, 'tenant-1');
 
-    expect(result.success).toBe(true);
-    expect(result.data.tenant.status).toBe(TENANT_STATUS.ACTIVE);
+    expect(result.tenant.status).toBe(TENANT_STATUS.ACTIVE);
 
-    expect(result.data.ownerMembership).toMatchObject({
+    expect(result.ownerMembership).toMatchObject({
       tenantId: 'tenant-1',
       userId: 'owner-1',
       status: MEMBERSHIP_STATUS.ACTIVE,
     });
 
-    expect(result.data.ownerRole).toEqual({
+    expect(result.ownerRole).toEqual({
       roleId: 'tenant-admin-role',
       role: ROLE_SLUGS.TENANT_ADMIN,
     });
 
-    expect(result.data.defaultRoles).toEqual([
+    expect(result.defaultRoles).toEqual([
       {
         id: 'staff-role',
         slug: ROLE_SLUGS.STAFF,
@@ -390,7 +396,7 @@ describe('AuthService.approveTenant', () => {
       },
     ]);
 
-    expect(result.data.permissions).toEqual([
+    expect(result.permissions).toEqual([
       'tenant.membership.approve',
       'tenant.membership.reject',
     ]);

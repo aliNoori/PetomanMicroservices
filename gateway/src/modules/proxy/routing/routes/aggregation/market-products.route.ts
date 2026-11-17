@@ -23,3 +23,20 @@ export const aggregationMarketProductsRoute =
     'MARKET_PRODUCTS',
     GatewayAuthMode.PUBLIC,
   );
+
+  /**
+ * Retrieve publicly available products across all active stores.
+ *
+ * Security:
+ * - No user JWT authentication is required.
+ * - Active tenant IDs are resolved internally by Auth.
+ * - The Gateway uses a global internal service token for Market.
+ * - Market must enforce active tenant and product stock visibility.
+ */
+export const aggregationMarketHomeProductsRoute =
+  GatewayRouteFactory.aggregation(
+    'GET',
+    '/api/market/public/home-products',
+    'MARKET_HOME_PRODUCTS',
+    GatewayAuthMode.PUBLIC,
+  );

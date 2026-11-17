@@ -6,7 +6,7 @@
  * from this file.
  */
 
-export { Sessions, AuthGuard,SystemRoleGuard } from "./components";
+export { Sessions, AuthGuard,SystemRoleGuard,WorkspaceTenantGuard } from "./components";
 
 // Hooks
 export { useAuth, useSessions } from "./hooks";

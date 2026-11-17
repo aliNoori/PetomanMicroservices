@@ -1,3 +1,5 @@
+import type { TenantType } from "@/features/tenant/types";
+
 export interface AuthUser {
   id: string;
   email: string;
@@ -32,6 +34,7 @@ export interface TenantOption {
   id: string;
   name: string;
   slug: string;
+  type: TenantType;
 }
 
 export interface SelectTenantRequest {

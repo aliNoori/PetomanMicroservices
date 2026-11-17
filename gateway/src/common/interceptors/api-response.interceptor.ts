@@ -7,7 +7,11 @@ import {
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
-import { ApiResponse, ApiSuccessResponse } from '../types/api-response.type';
+import {
+  ApiResponse,
+  ApiSuccessResponse,
+} from '../types/api-response.type';
+import { ApiResponsePayload } from '../types/api-response-payload.type';
 import { RequestWithId } from '../middleware/request-id.middleware';
 
 @Injectable()
@@ -27,12 +31,22 @@ export class ApiResponseInterceptor<T>
           return data;
         }
 
+        const payload =
+          data instanceof ApiResponsePayload
+            ? data
+            : undefined;
+
+        const responseData = payload
+          ? payload.data
+          : data;
+
         return {
           success: true,
-          data,
+          data: responseData,
           meta: {
             requestId: request.requestId,
             timestamp: new Date().toISOString(),
+            ...(payload?.meta ?? {}),
           },
         } satisfies ApiSuccessResponse<T>;
       }),

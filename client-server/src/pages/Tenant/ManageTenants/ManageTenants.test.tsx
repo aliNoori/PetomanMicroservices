@@ -24,6 +24,7 @@ function createTenant(overrides: Partial<PendingTenant> = {}): PendingTenant {
     id: "tenant-1",
     name: "AliMarket",
     slug: "alimarket",
+    type: "markets",
     ownerId: "user-1",
     status: "PENDING",
     createdAt: "2026-11-10T10:00:00.000Z",

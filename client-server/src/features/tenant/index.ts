@@ -14,6 +14,11 @@ export type {
   TenantType,
   TenantSummary,
   TenantSectionProps,
+    TenantMembershipTenant,
+  TenantMembershipUser,
+  TenantMembershipRole,
+  TenantMembership,
+  TenantMembershipsResponse,
 } from "./types";
 
 export {
@@ -49,6 +54,7 @@ export {
 export{marketTheme,vetTheme,pharmacyTheme,getTenantTheme} from "./theme"
 
 export { usePendingTenants } from "./hooks";
+export { useTenantMemberships } from "./hooks";
 
 export {
   CreateTenantForm,

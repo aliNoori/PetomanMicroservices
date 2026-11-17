@@ -1,4 +1,16 @@
-import { IsNotEmpty, IsString, Length, Matches } from 'class-validator';
+import {
+  IsIn,
+  IsNotEmpty,
+  IsString,
+  Length,
+  Matches,
+} from 'class-validator';
+
+import {
+  TENANT_TYPE,
+  type TenantType,
+} from '../../../common/constants/tenant.constants';
+
 export class CreateTenantDto {
   @IsString()
   @IsNotEmpty()
@@ -12,4 +24,8 @@ export class CreateTenantDto {
     message: 'Slug must contain only lowercase letters, numbers, and hyphens.',
   })
   slug!: string;
+
+  @IsString()
+  @IsIn(Object.values(TENANT_TYPE))
+  type!: TenantType;
 }

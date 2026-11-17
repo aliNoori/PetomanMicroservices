@@ -1,11 +1,24 @@
+
 import { useState, type FormEvent } from "react";
 
 import { Alert, Button, Card, Input } from "@/components/common";
 
-import type { CreateTenantRequest } from "../../types/tenant.types";
+import type {
+  CreateTenantRequest,
+  TenantType,
+} from "../../types/tenant.types";
 import type { CreateTenantFormProps } from "./CreateTenantForm.types";
 
 const SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+const TENANT_TYPES: {
+  value: TenantType;
+  label: string;
+}[] = [
+  { value: "markets", label: "Market" },
+  { value: "vets", label: "Veterinary Clinic" },
+  { value: "pharmacies", label: "Pharmacy" },
+];
 
 function generateSlug(value: string): string {
   return value
@@ -24,6 +37,7 @@ export function CreateTenantForm({
 }: CreateTenantFormProps) {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
+  const [type, setType] = useState<TenantType>("markets");
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
 
   const [nameError, setNameError] = useState<string | null>(null);
@@ -72,6 +86,10 @@ export function CreateTenantForm({
       valid = false;
     }
 
+    if (!TENANT_TYPES.some((item) => item.value === type)) {
+      valid = false;
+    }
+
     return valid;
   }
 
@@ -85,6 +103,7 @@ export function CreateTenantForm({
     const payload: CreateTenantRequest = {
       name: name.trim(),
       slug: slug.trim(),
+      type,
     };
 
     await onSubmit(payload);
@@ -119,6 +138,44 @@ export function CreateTenantForm({
           maxLength={150}
           aria-required="true"
         />
+
+        <div className="flex w-full flex-col gap-2">
+          <label
+            htmlFor="tenant-type"
+            className="text-sm font-medium text-text-primary"
+          >
+            Tenant type
+          </label>
+
+          <select
+            id="tenant-type"
+            value={type}
+            onChange={(event) => setType(event.target.value as TenantType)}
+            className="
+              h-11
+              w-full
+              rounded-lg
+              border
+              border-border
+              bg-surface
+              px-3
+              text-sm
+              text-text-primary
+              outline-none
+              transition
+              focus:border-primary
+              focus:ring-2
+              focus:ring-primary/30
+            "
+            aria-required="true"
+          >
+            {TENANT_TYPES.map((item) => (
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+        </div>
 
         <Input
           label="Tenant slug"

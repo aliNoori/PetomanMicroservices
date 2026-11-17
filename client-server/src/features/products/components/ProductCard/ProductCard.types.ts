@@ -1,3 +1,4 @@
+
 import type { ReactNode } from "react";
 
 export type ProductStockStatus =
@@ -11,7 +12,7 @@ export type ProductAddToCartVariant =
 
 export interface ProductPrice {
   amount: number;
-  currency: string;
+  currency?: string;
   formatted: string;
   originalAmount?: number;
   originalFormatted?: string;
@@ -26,9 +27,9 @@ export interface ProductRating {
 export interface ProductCardData {
   id: string;
   name: string;
-  slug: string;
+  slug?: string;
   image?: string;
-  category: string;
+  category?: string;
   brand?: string;
   price: ProductPrice;
   rating?: ProductRating;
@@ -39,33 +40,24 @@ export interface ProductCardData {
 
 export interface ProductCardProps {
   product: ProductCardData;
-
   favorite?: boolean;
-
   onFavoriteChange?: (
     product: ProductCardData,
     isFavorite: boolean,
   ) => void;
-
   onProductClick?: (
     product: ProductCardData,
   ) => void;
-
   onAddToCart?: (
-  product: ProductCardData,
-  quantity: number,
-) => void;
-
+    product: ProductCardData,
+    quantity: number,
+  ) => void;
   addToCartVariant?: ProductAddToCartVariant;
-
   initialQuantity?: number;
-
   onQuantityChange?: (
     product: ProductCardData,
     quantity: number,
   ) => void;
-
   actions?: ReactNode;
-
   className?: string;
 }

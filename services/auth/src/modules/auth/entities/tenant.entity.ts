@@ -14,10 +14,16 @@ import { UserEntity } from './user.entity';
 import { TenantUserEntity } from './tenant-user.entity';
 import { RoleEntity } from './role.entity';
 
-import { TENANT_STATUS } from '../../../common/constants/tenant.constants';
+import {
+  TENANT_STATUS,
+  TENANT_TYPE,
+  type TenantType,
+} from '../../../common/constants/tenant.constants';
+
 import { UserRoleEntity } from './user-role.entity';
 
 export type TenantStatus = (typeof TENANT_STATUS)[keyof typeof TENANT_STATUS];
+export type { TenantType };
 
 @Index('IDX_tenants_owner_id')
 @Entity('tenants')
@@ -37,6 +43,17 @@ export class TenantEntity {
     length: 150,
   })
   slug!: string;
+
+  // ============================================================
+  // Type
+  // ============================================================
+
+  @Column({
+    type: 'varchar',
+    length: 20,
+    default: TENANT_TYPE.MARKET,
+  })
+  type!: TenantType;
 
   // ============================================================
   // Owner

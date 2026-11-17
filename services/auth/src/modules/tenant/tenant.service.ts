@@ -149,6 +149,7 @@ export class TenantService {
       const tenant = tenantRepository.create({
         name: normalizedName,
         slug: normalizedSlug,
+        type: dto.type,
         ownerId: owner.id,
         status: TENANT_STATUS.PENDING,
       });
@@ -207,6 +208,10 @@ export class TenantService {
         'product.create',
         'product.update',
         'product.delete',
+
+        // Orders
+        'order.read',
+        'order.create',
       ];
 
       const staffPermissionSlugs = [
@@ -220,6 +225,10 @@ export class TenantService {
         'product.read',
         'product.create',
         'product.update',
+
+        // Orders
+        'order.read',
+        'order.create',
       ];
 
       const allPermissionSlugs = Array.from(
@@ -296,6 +305,7 @@ export class TenantService {
           id: savedTenant.id,
           name: savedTenant.name,
           slug: savedTenant.slug,
+          type: savedTenant.type,
           ownerId: savedTenant.ownerId,
           status: savedTenant.status,
         },
@@ -359,6 +369,7 @@ export class TenantService {
         id: tenant.id,
         name: tenant.name,
         slug: tenant.slug,
+        type: tenant.type,
         ownerId: tenant.ownerId,
         status: tenant.status,
       },
@@ -415,6 +426,7 @@ export class TenantService {
         id: savedTenant.id,
         name: savedTenant.name,
         slug: savedTenant.slug,
+        type: savedTenant.type,
         ownerId: savedTenant.ownerId,
         status: savedTenant.status,
       },
@@ -440,34 +452,9 @@ export class TenantService {
     }
 
     // GLOBAL scope can access memberships of any tenant.
-    if (requester.scope === InternalAuthScope.GLOBAL) {
-      const memberships =
-        await this.tenantUserRepository.findByTenantId(tenantId);
-
-      return {
-        success: true as const,
-
-        data: {
-          tenant: {
-            id: tenant.id,
-            name: tenant.name,
-            slug: tenant.slug,
-            status: tenant.status,
-          },
-
-          memberships: memberships.map((membership) => ({
-            membershipId: membership.id,
-            tenantId: membership.tenantId,
-            userId: membership.userId,
-            status: membership.status,
-          })),
-        },
-      };
+    if (requester.scope !== InternalAuthScope.GLOBAL) {
+      await this.assertActiveTenantMembership(requester, tenantId);
     }
-
-    // Non-global access requires an active tenant context
-    // and an active membership in that tenant.
-    await this.assertActiveTenantMembership(requester, tenantId);
 
     const memberships =
       await this.tenantUserRepository.findByTenantId(tenantId);
@@ -480,6 +467,7 @@ export class TenantService {
           id: tenant.id,
           name: tenant.name,
           slug: tenant.slug,
+          type: tenant.type,
           status: tenant.status,
         },
 
@@ -488,9 +476,55 @@ export class TenantService {
           tenantId: membership.tenantId,
           userId: membership.userId,
           status: membership.status,
+          createdAt: membership.createdAt,
+
+          user: membership.user
+            ? {
+                id: membership.user.id,
+                email: membership.user.email,
+                firstName: membership.user.firstName,
+                lastName: membership.user.lastName,
+                avatarKey: membership.user.avatarKey,
+                isActive: membership.user.isActive,
+              }
+            : null,
+
+          roles: (membership.user?.userRoles ?? [])
+            .filter(
+              (userRole) => userRole.tenantId === tenantId && userRole.role,
+            )
+            .map((userRole) => ({
+              roleId: userRole.role.id,
+              name: userRole.role.name,
+              slug: userRole.role.slug,
+            })),
         })),
       },
     };
+  }
+
+  // ============================================================
+  // Find Active Tenants
+  // ============================================================
+
+  async findActiveTenants(): Promise<
+    Pick<TenantEntity, 'id' | 'name' | 'slug' | 'type'>[]
+  > {
+    return this.tenantRepository.find({
+      where: {
+        status: TENANT_STATUS.ACTIVE,
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        type: true,
+      },
+      order: {
+        createdAt: 'ASC',
+        id: 'ASC',
+      },
+    });
   }
 
   // ============================================================

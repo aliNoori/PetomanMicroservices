@@ -18,10 +18,6 @@ class VerifyInternalJwt
     ): Response {
         $authorization = $request->header('Authorization');
 
-        // ============================================================
-        // Authorization Header
-        // ============================================================
-
         if (!$authorization) {
             return response()->json([
                 'success' => false,
@@ -51,9 +47,7 @@ class VerifyInternalJwt
         $token = $matches[1];
 
         try {
-            // ========================================================
-            // Internal JWT Configuration
-            // ========================================================
+            // Internal JWT configuration.
 
             $secret = config('services.internal_jwt.secret');
             $issuer = config('services.internal_jwt.issuer');
@@ -72,48 +66,22 @@ class VerifyInternalJwt
                 );
             }
 
-            // ========================================================
-            // JWT Verification
-            // ========================================================
+            // Verify JWT signature and registered claims.
 
             $payload = JWT::decode(
                 $token,
                 new Key($secret, 'HS256'),
             );
 
-            // ========================================================
-            // Internal JWT Type
-            // ========================================================
-
-            if (($payload->type ?? null) !== 'internal') {
+            if (
+                ($payload->type ?? null) !== 'internal'
+                || ($payload->sub ?? null) !== 'gateway'
+                || ($payload->iss ?? null) !== $issuer
+            ) {
                 throw new \RuntimeException(
-                    'Invalid internal JWT type.',
+                    'Invalid internal JWT identity.',
                 );
             }
-
-            // ========================================================
-            // Subject
-            // ========================================================
-
-            if (($payload->sub ?? null) !== 'gateway') {
-                throw new \RuntimeException(
-                    'Invalid internal JWT subject.',
-                );
-            }
-
-            // ========================================================
-            // Issuer
-            // ========================================================
-
-            if (($payload->iss ?? null) !== $issuer) {
-                throw new \RuntimeException(
-                    'Invalid internal JWT issuer.',
-                );
-            }
-
-            // ========================================================
-            // Audience
-            // ========================================================
 
             $tokenAudience = $payload->aud ?? null;
 
@@ -121,11 +89,7 @@ class VerifyInternalJwt
                 $tokenAudience !== $audience
                 && !(
                     is_array($tokenAudience)
-                    && in_array(
-                        $audience,
-                        $tokenAudience,
-                        true,
-                    )
+                    && in_array($audience, $tokenAudience, true)
                 )
             ) {
                 throw new \RuntimeException(
@@ -133,28 +97,141 @@ class VerifyInternalJwt
                 );
             }
 
-            // ========================================================
-            // Tenant Context
-            // ========================================================
+            // Validate authentication scope.
+
+            $scope = $payload->scope ?? null;
+
+            if (
+                !is_string($scope)
+                || !in_array(
+                    $scope,
+                    ['GLOBAL', 'TENANT', 'NO_TENANT'],
+                    true,
+                )
+            ) {
+                throw new \RuntimeException(
+                    'Invalid internal authentication scope.',
+                );
+            }
+
+            // Validate tenant context.
 
             $tenantId = $payload->tenantId ?? null;
 
             if (
                 $tenantId !== null
-                && !is_string($tenantId)
+                && (
+                    !is_string($tenantId)
+                    || trim($tenantId) === ''
+                )
             ) {
                 throw new \RuntimeException(
                     'Invalid internal tenant context.',
                 );
             }
 
-            // ========================================================
-            // Internal Authentication Context
-            // ========================================================
+            // Validate user identity.
+
+            $userId = $payload->userId ?? null;
+            $sid = $payload->sid ?? null;
+
+            $isUserToken = $userId !== null;
+
+            if ($isUserToken) {
+                if (
+                    !is_string($userId)
+                    || trim($userId) === ''
+                    || !is_string($sid)
+                    || trim($sid) === ''
+                ) {
+                    throw new \RuntimeException(
+                        'Invalid internal user identity.',
+                    );
+                }
+
+                // User authorization claims must be valid arrays.
+
+                $roles = $payload->roles ?? null;
+                $permissions = $payload->permissions ?? null;
+
+                if (
+                    !is_array($roles)
+                    || !array_is_list($roles)
+                    || !is_array($permissions)
+                    || !array_is_list($permissions)
+                ) {
+                    throw new \RuntimeException(
+                        'Invalid internal authorization context.',
+                    );
+                }
+
+                foreach ([$roles, $permissions] as $claimValues) {
+                    foreach ($claimValues as $value) {
+                        if (
+                            !is_string($value)
+                            || trim($value) === ''
+                        ) {
+                            throw new \RuntimeException(
+                                'Invalid internal authorization claim.',
+                            );
+                        }
+                    }
+                }
+            } else {
+                // Service tokens must not carry user authorization claims.
+
+                if (
+                    property_exists($payload, 'userId')
+                    || property_exists($payload, 'sid')
+                    || property_exists($payload, 'roles')
+                    || property_exists($payload, 'permissions')
+                ) {
+                    throw new \RuntimeException(
+                        'Invalid internal service token.',
+                    );
+                }
+
+                $isGlobalServiceToken =
+                    $scope === 'GLOBAL'
+                    && $tenantId === null;
+
+                $isTenantServiceToken =
+                    $scope === 'TENANT'
+                    && $tenantId !== null;
+
+                if (!$isGlobalServiceToken && !$isTenantServiceToken) {
+                    throw new \RuntimeException(
+                        'Invalid internal service token scope.',
+                    );
+                }
+
+                $roles = [];
+                $permissions = [];
+            }
+
+            // Validate scope and tenant consistency.
+
+            if (
+                ($scope === 'GLOBAL' && $tenantId !== null)
+                || ($scope === 'TENANT' && $tenantId === null)
+                || ($scope === 'NO_TENANT' && $tenantId !== null)
+                || ($scope === 'NO_TENANT' && !$isUserToken)
+            ) {
+                throw new \RuntimeException(
+                    'Internal authentication scope mismatch.',
+                );
+            }
+
+            // Build trusted internal authentication context.
 
             $internalAuthContext = new InternalAuthContext(
                 service: 'gateway',
+                scope: $scope,
+                userId: $userId,
                 tenantId: $tenantId,
+                sid: $sid,
+                roles: $roles,
+                permissions: $permissions,
             );
 
             $request->attributes->set(

@@ -13,3 +13,5 @@ export type {
 } from "./Sessions";
 
 export { SystemRoleGuard } from "./SystemRoleGuard";
+
+export { WorkspaceTenantGuard } from "./WorkspaceTenantGuard";

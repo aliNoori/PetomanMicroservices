@@ -1,8 +1,9 @@
 import { aggregationMeRoute } from './me.route';
-
 import { aggregationDashboardRoute } from './dashboard.route';
-
-import { aggregationMarketProductsRoute } from './market-products.route';
+import {
+  aggregationMarketProductsRoute,
+  aggregationMarketHomeProductsRoute,
+} from './market-products.route';
 
 /**
  * All Gateway aggregation routes.
@@ -24,4 +25,5 @@ export const aggregationRoutes = [
 
   // Public Market Products
   aggregationMarketProductsRoute,
+  aggregationMarketHomeProductsRoute,
 ];

@@ -148,6 +148,15 @@ export const apiClient = {
     return response.data.data;
   },
 
+  async getResponse<T>(
+    url: string,
+    config?: AxiosRequestConfig,
+  ): Promise<ApiResponse<T>> {
+    const response = await axiosInstance.get<ApiResponse<T>>(url, config);
+
+    return response.data;
+  },
+
   async post<T>(
     url: string,
     data?: unknown,

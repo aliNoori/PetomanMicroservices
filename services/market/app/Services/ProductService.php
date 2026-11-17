@@ -115,7 +115,7 @@ class ProductService
                 $paginator->items(),
             )->map(
                     fn(Product $product): array =>
-                    $product->toArray(),
+                        $product->toArray(),
                 )->all(),
 
             'has_more' => $paginator->hasMorePages(),
@@ -159,30 +159,24 @@ class ProductService
         ];
     }
 
+
     public function listPublic(
-        string $storeSlug,
+        TenantContext $tenant,
         int $perPage = 20,
         ?string $cursor = null,
         ?string $search = null,
         mixed $minPrice = null,
         mixed $maxPrice = null,
     ): array {
+        $tenantId = $tenant->tenantId;
+
         $perPage = min(
             max($perPage, 1),
             self::MAX_PER_PAGE,
         );
 
-        $tenant = Tenant::query()
-            ->where('slug', $storeSlug)
-            ->where('status', TenantStatus::ACTIVE)
-            ->first();
-
-        if ($tenant === null) {
-            abort(404);
-        }
-
         $query = Product::query()
-            ->where('tenant_id', $tenant->id)
+            ->where('tenant_id', $tenantId)
             ->where('is_active', true);
 
         if ($search !== null && $search !== '') {
@@ -225,7 +219,7 @@ class ProductService
             );
 
         return [
-            'tenant_id' => $tenant->id,
+            'tenant_id' => $tenantId,
 
             'items' => new Collection(
                 $paginator->items(),
@@ -244,6 +238,74 @@ class ProductService
             ],
         ];
     }
+
+
+    /**
+     * Retrieve available public products across multiple active tenants.
+     *
+     * @param list<string> $tenantIds
+     * @return array{
+     *     items: Collection<int, Product>,
+     *     pagination: array{
+     *         per_page: int,
+     *         has_more: bool,
+     *         next_cursor: ?string,
+     *         previous_cursor: ?string
+     *     }
+     * }
+     */
+    public function listHomeProducts(
+        array $tenantIds,
+        int $perPage = 20,
+        ?string $cursor = null,
+    ): array {
+        $perPage = min(
+            max($perPage, 1),
+            self::MAX_PER_PAGE,
+        );
+
+        $paginator = Product::query()
+            ->whereIn('tenant_id', $tenantIds)
+            ->where('is_active', true)
+            ->where('stock', '>', 0)
+            ->orderBy('id')
+            ->cursorPaginate(
+                perPage: $perPage,
+                columns: [
+                    'id',
+                    'tenant_id',
+                    'name',
+                    'description',
+                    'price',
+                    'stock',
+                    'is_active',
+                    'created_at',
+                    'updated_at',
+                ],
+                cursorName: 'cursor',
+                cursor: $cursor,
+            );
+
+        return [
+            'items' => new Collection(
+                $paginator->items(),
+            ),
+
+            'pagination' => [
+                'per_page' => $paginator->perPage(),
+
+                'has_more' => $paginator->hasMorePages(),
+
+                'next_cursor' =>
+                    $paginator->nextCursor()?->encode(),
+
+                'previous_cursor' =>
+                    $paginator->previousCursor()?->encode(),
+            ],
+        ];
+    }
+
+
 
     /**
      * Convert cached arrays back into real Product models.

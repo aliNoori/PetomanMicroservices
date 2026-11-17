@@ -1,7 +1,11 @@
+
 import { UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import { InternalJwtService, InternalAuthScope } from '@petoman/security';
+import {
+  InternalJwtService,
+  InternalAuthScope,
+} from '@petoman/security';
 
 import type { AuthenticatedRequest } from '@petoman/security';
 
@@ -43,6 +47,7 @@ describe('GatewayDownstreamAuthService', () => {
   const request = {
     user: {
       sub: 'user-001',
+      sid: 'session-001',
       tenantId: 'tenant-001',
       roles: ['OWNER'],
       permissions: ['product.read'],
@@ -79,7 +84,10 @@ describe('GatewayDownstreamAuthService', () => {
     expect(internalJwtService.signUserToken).toHaveBeenCalledWith(
       'user-001',
       'tenant-001',
+      'session-001',
       InternalAuthScope.TENANT,
+      ['OWNER'],
+      ['product.read'],
       {
         secret: 'test-internal-secret',
         issuer: 'petoman-gateway',
@@ -105,7 +113,10 @@ describe('GatewayDownstreamAuthService', () => {
     expect(internalJwtService.signUserToken).toHaveBeenCalledWith(
       'user-001',
       'tenant-001',
+      'session-001',
       InternalAuthScope.TENANT,
+      ['OWNER'],
+      ['product.read'],
       {
         secret: 'test-internal-secret',
         issuer: 'petoman-gateway',
@@ -133,14 +144,71 @@ describe('GatewayDownstreamAuthService', () => {
       requestWithoutTenant,
     );
 
-    expect(result).toMatch(/^Bearer\s+/);
-
-    expect(internalJwtService.signUserToken).toHaveBeenCalledTimes(1);
+    expect(result).toBe('Bearer user-token');
 
     expect(internalJwtService.signUserToken).toHaveBeenCalledWith(
       'user-001',
       undefined,
+      'session-001',
       InternalAuthScope.NO_TENANT,
+      [],
+      ['product.read'],
+      expect.objectContaining({
+        audience: 'petoman-market',
+      }),
+    );
+  });
+
+  it('should create a GLOBAL internal JWT for SUPER_ADMIN without tenant context', () => {
+    const globalAdminRequest = {
+      ...request,
+      user: {
+        ...request.user,
+        tenantId: null,
+        roles: ['SUPER_ADMIN'],
+        permissions: ['tenant.manage'],
+      },
+    } as unknown as AuthenticatedRequest;
+
+    service.createAuthorizationHeader(
+      GatewayTarget.MARKET,
+      GatewayAuthMode.JWT,
+      globalAdminRequest,
+    );
+
+    expect(internalJwtService.signUserToken).toHaveBeenCalledWith(
+      'user-001',
+      undefined,
+      'session-001',
+      InternalAuthScope.GLOBAL,
+      ['SUPER_ADMIN'],
+      ['tenant.manage'],
+      expect.anything(),
+    );
+  });
+
+  it('should preserve TENANT scope for SUPER_ADMIN with selected tenant', () => {
+    const globalAdminWithTenantRequest = {
+      ...request,
+      user: {
+        ...request.user,
+        roles: ['SUPER_ADMIN'],
+      },
+    } as AuthenticatedRequest;
+
+    service.createAuthorizationHeader(
+      GatewayTarget.MARKET,
+      GatewayAuthMode.JWT,
+      globalAdminWithTenantRequest,
+    );
+
+    expect(internalJwtService.signUserToken).toHaveBeenCalledWith(
+      'user-001',
+      'tenant-001',
+      'session-001',
+      InternalAuthScope.TENANT,
+      ['SUPER_ADMIN'],
+      ['product.read'],
       expect.anything(),
     );
   });
@@ -161,6 +229,44 @@ describe('GatewayDownstreamAuthService', () => {
     expect(internalJwtService.signServiceToken).not.toHaveBeenCalled();
   });
 
+  it('should reject JWT requests without session context', () => {
+    const requestWithoutSession = {
+      user: {
+        ...request.user,
+        sid: undefined,
+      },
+    } as unknown as AuthenticatedRequest;
+
+    expect(() =>
+      service.createAuthorizationHeader(
+        GatewayTarget.AUTH,
+        GatewayAuthMode.JWT,
+        requestWithoutSession,
+      ),
+    ).toThrow(UnauthorizedException);
+
+    expect(internalJwtService.signUserToken).not.toHaveBeenCalled();
+  });
+
+  it('should reject JWT requests without authorization context', () => {
+    const requestWithoutPermissions = {
+      user: {
+        ...request.user,
+        permissions: undefined,
+      },
+    } as unknown as AuthenticatedRequest;
+
+    expect(() =>
+      service.createAuthorizationHeader(
+        GatewayTarget.AUTH,
+        GatewayAuthMode.JWT,
+        requestWithoutPermissions,
+      ),
+    ).toThrow(UnauthorizedException);
+
+    expect(internalJwtService.signUserToken).not.toHaveBeenCalled();
+  });
+
   it('should create a service token for public Auth requests', () => {
     const requestWithoutUser = {} as AuthenticatedRequest;
 
@@ -171,8 +277,6 @@ describe('GatewayDownstreamAuthService', () => {
     );
 
     expect(result).toBe('Bearer service-token');
-
-    expect(internalJwtService.signServiceToken).toHaveBeenCalledTimes(1);
 
     expect(internalJwtService.signServiceToken).toHaveBeenCalledWith({
       secret: 'test-internal-secret',
@@ -194,8 +298,6 @@ describe('GatewayDownstreamAuthService', () => {
     );
 
     expect(result).toBe('Bearer service-token');
-
-    expect(internalJwtService.signServiceToken).toHaveBeenCalledTimes(1);
 
     expect(internalJwtService.signServiceToken).toHaveBeenCalledWith({
       secret: 'test-internal-secret',

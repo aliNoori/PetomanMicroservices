@@ -1,6 +1,9 @@
+import { ApiPagination } from './pagination.type';
+
 export interface ApiMeta {
   readonly requestId: string;
   readonly timestamp: string;
+  readonly pagination?: ApiPagination | null;
 }
 
 export interface ApiSuccessResponse<T> {

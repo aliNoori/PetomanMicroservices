@@ -55,11 +55,7 @@ export class TenantUserRepository {
     tenantId: string,
     userId: string,
   ): Promise<boolean> {
-    const membership =
-      await this.findActiveMembership(
-        tenantId,
-        userId,
-      );
+    const membership = await this.findActiveMembership(tenantId, userId);
 
     return membership !== null;
   }
@@ -68,9 +64,7 @@ export class TenantUserRepository {
   // FIND USER MEMBERSHIPS
   // ============================================================
 
-  async findByUserId(
-    userId: string,
-  ): Promise<TenantUserEntity[]> {
+  async findByUserId(userId: string): Promise<TenantUserEntity[]> {
     return this.repository.find({
       where: {
         userId,
@@ -82,23 +76,50 @@ export class TenantUserRepository {
   // FIND TENANT MEMBERS
   // ============================================================
 
-  async findByTenantId(
-    tenantId: string,
-  ): Promise<TenantUserEntity[]> {
-    return this.repository.find({
-      where: {
-        tenantId,
-      },
-    });
+  async findByTenantId(tenantId: string): Promise<TenantUserEntity[]> {
+    return this.repository
+      .createQueryBuilder('membership')
+      .leftJoinAndSelect('membership.user', 'user')
+      .leftJoinAndSelect(
+        'user.userRoles',
+        'userRole',
+        'userRole.tenantId = :tenantId',
+        { tenantId },
+      )
+      .leftJoinAndSelect('userRole.role', 'role')
+      .select([
+        'membership.id',
+        'membership.tenantId',
+        'membership.userId',
+        'membership.status',
+        'membership.createdAt',
+
+        'user.id',
+        'user.email',
+        'user.firstName',
+        'user.lastName',
+        'user.avatarKey',
+        'user.isActive',
+
+        'userRole.id',
+        'userRole.roleId',
+        'userRole.tenantId',
+
+        'role.id',
+        'role.name',
+        'role.slug',
+      ])
+      .where('membership.tenantId = :tenantId', { tenantId })
+      .orderBy('membership.createdAt', 'ASC')
+      .addOrderBy('membership.id', 'ASC')
+      .getMany();
   }
 
   // ============================================================
   // FIND PENDING MEMBERSHIPS
   // ============================================================
 
-  async findPendingByTenantId(
-    tenantId: string,
-  ): Promise<TenantUserEntity[]> {
+  async findPendingByTenantId(tenantId: string): Promise<TenantUserEntity[]> {
     return this.repository.find({
       where: {
         tenantId,
@@ -127,11 +148,8 @@ export class TenantUserRepository {
   // CREATE MEMBERSHIP
   // ============================================================
 
-  async create(
-    data: Partial<TenantUserEntity>,
-  ): Promise<TenantUserEntity> {
-    const membership =
-      this.repository.create(data);
+  async create(data: Partial<TenantUserEntity>): Promise<TenantUserEntity> {
+    const membership = this.repository.create(data);
 
     return this.repository.save(membership);
   }
@@ -140,9 +158,7 @@ export class TenantUserRepository {
   // SAVE MEMBERSHIP
   // ============================================================
 
-  async save(
-    membership: TenantUserEntity,
-  ): Promise<TenantUserEntity> {
+  async save(membership: TenantUserEntity): Promise<TenantUserEntity> {
     return this.repository.save(membership);
   }
 
@@ -155,11 +171,7 @@ export class TenantUserRepository {
     userId: string,
     status: MembershipStatus,
   ): Promise<TenantUserEntity | null> {
-    const membership =
-      await this.findMembership(
-        tenantId,
-        userId,
-      );
+    const membership = await this.findMembership(tenantId, userId);
 
     if (!membership) {
       return null;

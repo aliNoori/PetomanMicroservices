@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   NotFoundException,
   Param,
@@ -12,6 +13,7 @@ import {
 } from '@nestjs/common';
 
 import {
+  InternalAuthScope,
   InternalJwtGuard,
   JwtAuthGuard,
   PermissionsGuard,
@@ -45,6 +47,30 @@ export class TenantController {
     }
 
     return this.tenantService.createTenant(userId, dto);
+  }
+
+  @UseGuards(InternalJwtGuard)
+  @Get('active')
+  async findActiveTenants(@Req() request: InternalAuthenticatedRequest) {
+    const auth = request.internalAuth;
+
+    if (
+      auth?.scope !== InternalAuthScope.GLOBAL ||
+      auth.userId !== undefined ||
+      auth.tenantId !== undefined ||
+      auth.sid !== undefined ||
+      auth.roles !== undefined ||
+      auth.permissions !== undefined
+    ) {
+      throw new ForbiddenException({
+        message: 'A global service token is required.',
+      });
+    }
+
+    return {
+      success: true,
+      data: await this.tenantService.findActiveTenants(),
+    };
   }
 
   @UseGuards(InternalJwtGuard)

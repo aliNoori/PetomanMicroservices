@@ -24,7 +24,9 @@ export function RegisterPage() {
     setError(null);
 
     try {
-      const response = await authService.register(payload, avatar);
+      const response = avatar
+        ? await authService.register(payload, avatar)
+        : await authService.register(payload);
 
       setEmail(response.email);
       setStatus("success");

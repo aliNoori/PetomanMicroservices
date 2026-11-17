@@ -1,100 +1,33 @@
-import {
-  Button,
-} from "../../../../components/common/Button";
-
-
-import {
-  ProductCard,
-} from "../../../products/components/ProductCard";
-
-
-
-const products = [
-  {
-    id: "product-1",
-    name: "Premium Adult Dog Food",
-    slug: "premium-adult-dog-food",
-    image:
-      "https://image.made-in-china.com/365f3j00dmpPwYWhkVGA/Gt-Wholesale-Mylar-Gold-Aluminum-Foil-Stand-up-Packaging-Bag-at-Wholesale-Price-Paper-Sack-Bag-Pinch-Bottom-for-Pet-Food.webp",
-    category: "Dog Food",
-    brand: "PetCare",
-    price: {
-      amount: 29.9,
-      currency: "EUR",
-      formatted: "€29.90",
-      originalAmount: 34.9,
-      originalFormatted: "€34.90",
-      discountPercentage: 14,
-    },
-    rating: {
-      value: 4.8,
-      count: 124,
-    },
-    stockStatus: "in-stock" as const,
-    badge: "Best Seller",
-  },
-  {
-    id: "product-2",
-    name: "Interactive Pet Toy",
-    slug: "interactive-pet-toy",
-    image:
-      "https://assets.kogan.com/images/emutreegroup/ETG-PT7496BL-ETGSYZ-Ara00029255555/1-70596a2c7d-752aa8323313475080e9bca13b14e131.png",
-    category: "Pet Toys",
-    brand: "PetPlay",
-    price: {
-      amount: 19.9,
-      currency: "EUR",
-      formatted: "€19.90",
-    },
-    rating: {
-      value: 4.6,
-      count: 87,
-    },
-    stockStatus: "low-stock" as const,
-    badge: "Popular",
-  },
-  {
-    id: "product-3",
-    name: "Premium Pet Bed",
-    slug: "premium-pet-bed",
-    image:
-      "https://image.made-in-china.com/365f3j00dmpPwYWhkVGA/Gt-Wholesale-Mylar-Gold-Aluminum-Foil-Stand-up-Packaging-Bag-at-Wholesale-Price-Paper-Sack-Bag-Pinch-Bottom-for-Pet-Food.webp",
-    category: "Pet Accessories",
-    brand: "ComfortPet",
-    price: {
-      amount: 49.9,
-      currency: "EUR",
-      formatted: "€49.90",
-    },
-    rating: {
-      value: 4.9,
-      count: 213,
-    },
-    stockStatus: "in-stock" as const,
-    badge: "Top Rated",
-  },
-];
-
-
+﻿import { useHomeProducts } from "../../hooks";
+import { mapHomeProductToCard } from "../../utils";
+import { ProductCard } from "../../../products/components/ProductCard";
 
 export function ProductSection() {
+  const {
+    products,
+    tenants,
+    pagination,
+    loading,
+    loadingMore,
+    error,
+    refresh,
+    loadMore,
+  } = useHomeProducts();
 
+  const tenantNames = new Map(
+    tenants.map((tenant) => [tenant.id, tenant.name]),
+  );
 
   return (
-
     <section
       aria-labelledby="featured-products-title"
       className="space-y-6"
     >
-
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-
         <div>
-
           <p className="text-sm font-semibold uppercase tracking-wider text-primary">
             Marketplace
           </p>
-
 
           <h2
             id="featured-products-title"
@@ -103,123 +36,129 @@ export function ProductSection() {
             Featured Products
           </h2>
 
-
           <p className="mt-2 max-w-2xl text-text-secondary">
+            Discover available products from stores across the marketplace.
+          </p>
+        </div>
+      </div>
 
-            A complete product-card scenario with pricing,
-            discount, rating, stock state, favorite interaction,
-            quantity control, and cart action.
+      {loading && products.length === 0 && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
+        >
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div
+              key={index}
+              className="animate-pulse overflow-hidden rounded-2xl border border-border bg-surface"
+            >
+              <div className="aspect-video bg-surface-elevated" />
+              <div className="space-y-4 p-5">
+                <div className="h-4 w-1/3 rounded bg-surface-elevated" />
+                <div className="h-6 w-3/4 rounded bg-surface-elevated" />
+                <div className="h-8 w-1/2 rounded bg-surface-elevated" />
+                <div className="h-11 rounded-xl bg-surface-elevated" />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
+      {error && products.length === 0 && (
+        <div
+          role="alert"
+          className="rounded-2xl border border-danger/20 bg-danger/5 p-6 text-center"
+        >
+          <p className="font-semibold text-text-primary">
+            Unable to load products.
           </p>
 
+          <p className="mt-2 text-sm text-text-secondary">
+            Please check your connection and try again.
+          </p>
+
+          <button
+            type="button"
+            onClick={() => void refresh()}
+            className="mt-4 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-text-inverse transition-colors hover:bg-primary-hover"
+          >
+            Try Again
+          </button>
         </div>
+      )}
 
+      {!loading && !error && products.length === 0 && (
+        <div className="rounded-2xl border border-border bg-surface px-6 py-12 text-center">
+          <p className="text-lg font-semibold text-text-primary">
+            No products available
+          </p>
 
-        <Button variant="outline">
-          View All Products
-        </Button>
+          <p className="mt-2 text-sm text-text-secondary">
+            There are no available products in the marketplace right now.
+          </p>
+        </div>
+      )}
 
+      {products.length > 0 && (
+        <>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {products.map((product) => {
+              const storeName = tenantNames.get(product.tenant_id);
 
-      </div>
-
-
-
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-
-        {
-          products.map(
-            (
-              product,
-              index,
-            ) => (
-
-              <ProductCard
-
-                key={product.id}
-
-                product={product}
-
-                addToCartVariant="quantity"
-
-                initialQuantity={
-                  index === 2
-                    ? 2
-                    : 1
-                }
-
-
-                onQuantityChange={
-                  (
-                    item,
-                    quantity,
-                  ) => {
-
-                    console.log(
-                      "Quantity changed:",
-                      item.id,
-                      quantity,
-                    );
-
+              return (
+                <ProductCard
+                  key={`${product.tenant_id}-${product.id}`}
+                  product={mapHomeProductToCard(product)}
+                  actions={
+                    storeName ? (
+                      <p className="truncate text-xs text-text-secondary">
+                        Sold by{" "}
+                        <span className="font-semibold text-text-primary">
+                          {storeName}
+                        </span>
+                      </p>
+                    ) : undefined
                   }
-                }
+                />
+              );
+            })}
+          </div>
 
+          {error && (
+            <div
+              role="alert"
+              className="flex flex-col items-center gap-3 rounded-xl border border-danger/20 bg-danger/5 p-4 text-center sm:flex-row sm:justify-between"
+            >
+              <p className="text-sm text-text-secondary">
+                Failed to load more products.
+              </p>
 
-                onAddToCart={
-                  (
-                    item,
-                    quantity,
-                  ) => {
+              <button
+                type="button"
+                onClick={() => void loadMore()}
+                disabled={loadingMore}
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-text-inverse transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Try Again
+              </button>
+            </div>
+          )}
 
-                    console.log(
-                      "Add to cart:",
-                      item.id,
-                      quantity,
-                    );
-
-                  }
-                }
-
-
-                onFavoriteChange={
-                  (
-                    item,
-                    nextValue,
-                  ) => {
-
-                    console.log(
-                      "Favorite:",
-                      item.id,
-                      nextValue,
-                    );
-
-                  }
-                }
-
-
-                onProductClick={
-                  (
-                    item,
-                  ) => {
-
-                    console.log(
-                      "Open product:",
-                      item.slug,
-                    );
-
-                  }
-                }
-
-              />
-
-            ),
-          )
-        }
-
-      </div>
-
-
+          {pagination?.has_more && !error && (
+            <div className="flex justify-center pt-2">
+              <button
+                type="button"
+                onClick={() => void loadMore()}
+                disabled={loadingMore}
+                className="min-w-40 rounded-xl border border-border bg-surface px-6 py-3 text-sm font-semibold text-text-primary transition-colors hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {loadingMore ? "Loading..." : "Load More Products"}
+              </button>
+            </div>
+          )}
+        </>
+      )}
     </section>
-
   );
-
 }

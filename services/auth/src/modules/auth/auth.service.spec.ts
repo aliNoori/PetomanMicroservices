@@ -9,11 +9,14 @@ import { AUTH_ERROR_CODES } from '../../common/constants/auth-error-codes.consta
 describe('AuthService - getUser', () => {
   let service: AuthService;
 
-  const jwtTokenService = {
-    sign: jest.fn(),
-  };
-
+  const jwtTokenService = { sign: jest.fn() };
+  const deviceInfoService = {};
   const dataSource = {};
+  const redisService = {};
+  const mailService = {};
+  const configurationService = {};
+  const userAvatarService = {};
+  const emailVerificationTokenRepository = {};
 
   const userRepository = {
     findOne: jest.fn(),
@@ -30,18 +33,26 @@ describe('AuthService - getUser', () => {
   };
 
   const rolePermissionRepository = {};
+  const refreshTokenRepository = {};
 
   beforeEach(() => {
     jest.clearAllMocks();
 
     service = new AuthService(
       jwtTokenService as any,
+      deviceInfoService as any,
       dataSource as any,
+      redisService as any,
+      mailService as any,
+      configurationService as any,
+      userAvatarService as any,
+      emailVerificationTokenRepository as any,
       userRepository as any,
       tenantRepository as any,
       tenantUserRepository as any,
       userRoleRepository as any,
       rolePermissionRepository as any,
+      refreshTokenRepository as any,
     );
   });
 

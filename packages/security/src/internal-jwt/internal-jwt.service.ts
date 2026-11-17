@@ -1,3 +1,4 @@
+
 import { Injectable } from "@nestjs/common";
 import { sign, verify } from "jsonwebtoken";
 
@@ -16,6 +17,8 @@ export interface InternalJwtPayload {
   readonly userId?: string;
   readonly tenantId?: string;
   readonly sid?: string;
+  readonly roles?: readonly string[];
+  readonly permissions?: readonly string[];
 }
 
 export interface InternalJwtOptions {
@@ -32,6 +35,8 @@ export class InternalJwtService {
     tenantId: string | undefined,
     sid: string,
     scope: InternalAuthScope,
+    roles: readonly string[],
+    permissions: readonly string[],
     options: InternalJwtOptions,
   ): string {
     const payload: InternalJwtPayload = {
@@ -40,6 +45,8 @@ export class InternalJwtService {
       scope,
       userId,
       sid,
+      roles,
+      permissions,
       ...(tenantId ? { tenantId } : {}),
     };
 
@@ -133,6 +140,33 @@ export class InternalJwtService {
         decoded.tenantId.trim().length === 0)
     ) {
       throw new Error("Invalid internal tenant ID.");
+    }
+
+    if (decoded.userId) {
+      if (
+        !Array.isArray(decoded.roles) ||
+        !decoded.roles.every(
+          (role: unknown) =>
+            typeof role === "string" && role.trim().length > 0,
+        )
+      ) {
+        throw new Error("Invalid internal user roles.");
+      }
+
+      if (
+        !Array.isArray(decoded.permissions) ||
+        !decoded.permissions.every(
+          (permission: unknown) =>
+            typeof permission === "string" && permission.trim().length > 0,
+        )
+      ) {
+        throw new Error("Invalid internal user permissions.");
+      }
+    } else if (
+      decoded.roles !== undefined ||
+      decoded.permissions !== undefined
+    ) {
+      throw new Error("Service JWT must not contain user authorization claims.");
     }
 
     // GLOBAL requests must not carry a tenant context.

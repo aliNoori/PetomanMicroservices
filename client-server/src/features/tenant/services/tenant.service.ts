@@ -9,6 +9,10 @@ import type {
   RejectTenantRequest,
 } from "../types/tenant.types";
 
+import type { ApiResponse } from "@/lib/api/api-response.types";
+
+import type { TenantMembershipsResponse } from "../types/tenant.types";
+
 class TenantService {
   async createTenant(
     payload: CreateTenantRequest,
@@ -43,6 +47,19 @@ class TenantService {
       `/auth/tenants/${tenantId}/reject`,
       payload,
     );
+  }
+
+  /**
+   * Get all memberships and their tenant-specific roles.
+   */
+  async getTenantMemberships(
+    tenantId: string,
+  ): Promise<TenantMembershipsResponse> {
+    const response = await apiClient.getResponse<
+      ApiResponse<TenantMembershipsResponse>
+    >(`/auth/tenants/${tenantId}/memberships`);
+
+    return response.data.data;
   }
 }
 

@@ -59,6 +59,7 @@ describe("CreateTenantForm", () => {
     expect(onSubmit).toHaveBeenCalledWith({
       name: "My Tenant",
       slug: "my-tenant",
+      type: "markets",
     });
   });
 });

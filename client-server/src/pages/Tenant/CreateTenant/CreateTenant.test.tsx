@@ -26,6 +26,7 @@ const mockResponse: CreateTenantResponse = {
     id: "tenant-123",
     name: "Happy Market",
     slug: "happy-market",
+    type: "markets",
     ownerId: "user-123",
     status: "PENDING",
   },
@@ -84,6 +85,7 @@ describe("CreateTenantPage", () => {
       expect(mockCreateTenant).toHaveBeenCalledWith({
         name: "Happy Market",
         slug: "happy-market",
+        type: "markets",
       });
     });
 

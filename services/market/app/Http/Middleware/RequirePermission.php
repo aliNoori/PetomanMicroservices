@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Auth\AuthContext;
+use App\Auth\InternalAuthContext;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -17,7 +18,13 @@ class RequirePermission
         /** @var AuthContext|null $auth */
         $auth = $request->attributes->get('auth');
 
-        if (!$auth instanceof AuthContext) {
+        /** @var InternalAuthContext|null $internalAuth */
+        $internalAuth = $request->attributes->get('internal_auth');
+
+        if (
+            !$auth instanceof AuthContext
+            && !$internalAuth instanceof InternalAuthContext
+        ) {
             return response()->json([
                 'success' => false,
                 'error' => [
@@ -27,7 +34,21 @@ class RequirePermission
             ], 401);
         }
 
-        if (!in_array($permission, $auth->permissions, true)) {
+        $hasPermission = false;
+
+        if ($auth instanceof AuthContext) {
+            $hasPermission = in_array(
+                $permission,
+                $auth->permissions,
+                true,
+            );
+        } elseif ($internalAuth instanceof InternalAuthContext) {
+            $hasPermission = $internalAuth->hasPermission(
+                $permission,
+            );
+        }
+
+        if (!$hasPermission) {
             return response()->json([
                 'success' => false,
                 'error' => [

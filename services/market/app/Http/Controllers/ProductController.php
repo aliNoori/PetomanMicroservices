@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Auth\TenantContext;
+use App\Requests\HomeProductsRequest;
+use App\Auth\InternalAuthContext;
 use App\Resources\ProductResource;
 use App\Requests\CreateProduct;
 use App\Requests\ListProductsRequest;
@@ -57,14 +59,17 @@ class ProductController extends Controller
     // GET /api/public/stores/{storeSlug}/products
     // ============================================================
 
+
     public function publicIndex(
         ListProductsRequest $request,
-        string $storeSlug,
     ): JsonResponse {
+        /** @var TenantContext $tenant */
+        $tenant = $request->attributes->get('tenant');
+
         $validated = $request->validated();
 
         $result = $this->productService->listPublic(
-            storeSlug: $storeSlug,
+            tenant: $tenant,
             perPage: $validated['per_page'] ?? 20,
             cursor: $validated['cursor'] ?? null,
             search: $validated['search'] ?? null,
@@ -76,7 +81,7 @@ class ProductController extends Controller
             'success' => true,
 
             'data' => [
-                'tenant_id' => $result['tenant_id'],
+                'tenant_id' => $tenant->tenantId,
 
                 'products' => ProductResource::collection(
                     $result['items'],
@@ -88,6 +93,55 @@ class ProductController extends Controller
             ],
         ]);
     }
+
+
+    // ============================================================
+    // POST /api/internal/public/home-products
+    // ============================================================
+
+    public function homeIndex(
+        HomeProductsRequest $request,
+    ): JsonResponse {
+        /** @var InternalAuthContext|null $auth */
+        $auth = $request->attributes->get('internal_auth');
+
+        if (
+            !$auth instanceof InternalAuthContext
+            || !$auth->isGlobalService()
+        ) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'AUTH_GLOBAL_SERVICE_REQUIRED',
+                    'message' => 'A global service token is required.',
+                ],
+            ], 403);
+        }
+
+        $validated = $request->validated();
+
+        $result = $this->productService->listHomeProducts(
+            tenantIds: $validated['tenant_ids'],
+            perPage: $validated['per_page'] ?? 20,
+            cursor: $validated['cursor'] ?? null,
+        );
+
+        return response()->json([
+            'success' => true,
+
+            'data' => [
+                'products' => ProductResource::collection(
+                    $result['items'],
+                ),
+            ],
+
+            'meta' => [
+                'pagination' => $result['pagination'],
+            ],
+        ]);
+    }
+
+
 
     // ============================================================
     // GET /api/products/{productId}

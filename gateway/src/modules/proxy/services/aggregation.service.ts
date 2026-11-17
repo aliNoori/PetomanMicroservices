@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   GatewayTimeoutException,
+  HttpException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -24,6 +25,8 @@ import {
   SERVICE_NAMES,
   ServiceName,
 } from '../constants/service-route.constants';
+
+import { ApiResponsePayload } from '../../../common/types/api-response-payload.type';
 
 import { ERROR_CODES } from '@petoman/security';
 import { TenantResolverService } from './tenant-resolver.service';
@@ -121,6 +124,9 @@ export class AggregationService {
 
       case 'MARKET_PRODUCTS':
         return this.aggregateMarketProducts(context);
+
+      case 'MARKET_HOME_PRODUCTS':
+        return this.aggregateMarketHomeProducts(context);
 
       default:
         throw new Error(`Unknown aggregation handler: ${handler}`);
@@ -283,6 +289,12 @@ export class AggregationService {
         storeSlug.trim(),
       );
 
+      if (tenant.status !== 'ACTIVE') {
+        throw new NotFoundException({
+          code: ERROR_CODES.NOT_FOUND,
+        });
+      }
+
       /**
        * Create an internal JWT scoped to the resolved tenant.
        *
@@ -312,7 +324,7 @@ export class AggregationService {
        */
       const productsResponse = await firstValueFrom(
         this.httpService.get(
-          this.buildDownstreamUrl(marketService, '/api/products'),
+          this.buildDownstreamUrl(marketService, '/api/public/products'),
           {
             timeout: marketService.timeoutMs,
             headers: {
@@ -329,7 +341,88 @@ export class AggregationService {
        */
       return productsResponse.data.data;
     } catch (error: unknown) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
       console.error('MARKET_PRODUCTS AGGREGATION ERROR:', error);
+
+      throw this.translateDownstreamError(error);
+    }
+  }
+
+    private async aggregateMarketHomeProducts(
+    context: AggregationContext,
+  ): Promise<unknown> {
+    try {
+      // Resolve active tenants from Auth.
+      const tenants = await this.tenantResolverService.resolveActiveTenants();
+
+      if (tenants.length === 0) {
+        return new ApiResponsePayload(
+          {
+            tenants: [],
+            products: [],
+          },
+          {
+            pagination: null,
+          },
+        );
+      }
+
+      // Create a global internal JWT for Market.
+      const marketJwtOptions: InternalJwtOptions = {
+        secret: this.configurationService.internalJwt.secret,
+        issuer: this.configurationService.internalJwt.issuer,
+        audience: this.configurationService.internalJwt.marketAudience,
+        expiresInSeconds:
+          this.configurationService.internalJwt.expiresInSeconds,
+      };
+
+      const internalToken =
+        this.internalJwtService.signServiceToken(marketJwtOptions);
+
+      const marketService = this.getServiceConfig(SERVICE_NAMES.MARKET);
+
+      // Request products from all active tenants in one call.
+      const productsResponse = await firstValueFrom(
+        this.httpService.post(
+          this.buildDownstreamUrl(
+            marketService,
+            '/api/internal/public/home-products',
+          ),
+          {
+            tenant_ids: tenants.map((tenant) => tenant.id),
+            per_page: context.query.perPage,
+            cursor: context.query.cursor,
+          },
+          {
+            timeout: marketService.timeoutMs,
+            headers: {
+              Authorization: `Bearer ${internalToken}`,
+              Accept: 'application/json',
+              'Content-Type': 'application/json',
+            },
+          },
+        ),
+      );
+
+      return new ApiResponsePayload(
+        {
+          tenants,
+          ...productsResponse.data.data,
+        },
+        {
+          pagination: productsResponse.data.meta?.pagination ?? null,
+        },
+      );
+    } catch (error: unknown) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      console.error('MARKET_HOME_PRODUCTS AGGREGATION ERROR:', error);
+
       throw this.translateDownstreamError(error);
     }
   }

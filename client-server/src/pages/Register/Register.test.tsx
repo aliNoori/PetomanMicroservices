@@ -63,9 +63,9 @@ describe("RegisterPage", () => {
 
     vi.mocked(authService.register).mockResolvedValue({
       id: "user-123",
-      email: "test@example.com",
-      firstName: "Test",
-      lastName: "User",
+      email: "user@example.com",
+      firstName: "Ali",
+      lastName: "Noori",
       isActive: true,
       isEmailVerified: false,
       avatarUrl: null,

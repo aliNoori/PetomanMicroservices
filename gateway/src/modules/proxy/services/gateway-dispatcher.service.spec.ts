@@ -56,8 +56,10 @@ describe('GatewayDispatcherService', () => {
     body: undefined,
     query: {},
     headers: {},
+    is: jest.fn().mockReturnValue(false),
     user: {
       sub: 'user-001',
+      sid: 'session-001',
       tenantId: 'tenant-001',
       roles: ['OWNER'],
       permissions: ['product.read'],

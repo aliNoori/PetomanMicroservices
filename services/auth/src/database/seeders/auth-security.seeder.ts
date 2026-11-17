@@ -121,6 +121,22 @@ const PERMISSIONS = [
     name: 'Delete Product',
     description: 'Allows deleting products within the current tenant.',
   },
+
+  // ============================================================
+  // Order
+  // ============================================================
+
+  {
+    slug: 'order.read',
+    name: 'Read Order',
+    description: 'Allows reading orders within the current tenant.',
+  },
+
+  {
+    slug: 'order.create',
+    name: 'Create Order',
+    description: 'Allows creating orders within the current tenant.',
+  },
 ] as const;
 
 const SUPER_ADMIN = {

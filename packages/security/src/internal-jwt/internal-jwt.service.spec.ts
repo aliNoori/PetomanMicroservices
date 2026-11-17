@@ -13,6 +13,14 @@ describe("InternalJwtService", () => {
   };
 
   const sessionId = "550e8400-e29b-41d4-a716-446655440000";
+  const roles = ["TENANT_ADMIN", "SUPER_ADMIN"];
+
+  const permissions = [
+    "products.read",
+    "products.create",
+    "products.update",
+    "products.delete",
+  ];
 
   beforeEach(() => {
     service = new InternalJwtService();
@@ -252,6 +260,8 @@ describe("InternalJwtService", () => {
       undefined,
       sessionId,
       InternalAuthScope.NO_TENANT,
+      roles,
+      permissions,
       options,
     );
 
@@ -266,6 +276,70 @@ describe("InternalJwtService", () => {
     });
 
     expect(payload.tenantId).toBeUndefined();
+  });
+
+  it("should preserve user roles and permissions", () => {
+    const token = service.signUserToken(
+      "user-001",
+      "tenant-001",
+      sessionId,
+      InternalAuthScope.TENANT,
+      roles,
+      permissions,
+      options,
+    );
+
+    const payload = service.verify(token, options);
+
+    expect(payload.roles).toEqual(roles);
+    expect(payload.permissions).toEqual(permissions);
+  });
+
+  it("should reject a user token without roles", () => {
+    const token = sign(
+      {
+        sub: "gateway",
+        type: "internal",
+        scope: InternalAuthScope.NO_TENANT,
+        userId: "user-001",
+        sid: sessionId,
+        permissions,
+      },
+      options.secret,
+      {
+        algorithm: "HS256",
+        issuer: options.issuer,
+        audience: options.audience,
+        expiresIn: options.expiresInSeconds,
+      },
+    );
+
+    expect(() => service.verify(token, options)).toThrow(
+      "Invalid internal user roles.",
+    );
+  });
+
+  it("should reject a service token containing user authorization claims", () => {
+    const token = sign(
+      {
+        sub: "gateway",
+        type: "internal",
+        scope: InternalAuthScope.GLOBAL,
+        roles,
+        permissions,
+      },
+      options.secret,
+      {
+        algorithm: "HS256",
+        issuer: options.issuer,
+        audience: options.audience,
+        expiresIn: options.expiresInSeconds,
+      },
+    );
+
+    expect(() => service.verify(token, options)).toThrow(
+      "Service JWT must not contain user authorization claims.",
+    );
   });
 
   it("should reject a token with an invalid internal auth scope", () => {
@@ -295,6 +369,8 @@ describe("InternalJwtService", () => {
       undefined,
       sessionId,
       InternalAuthScope.GLOBAL,
+      roles,
+      permissions,
       options,
     );
 
@@ -328,7 +404,10 @@ describe("InternalJwtService", () => {
         type: "internal",
         scope: InternalAuthScope.GLOBAL,
         userId: "user-001",
+        sid: sessionId,
         tenantId: "tenant-001",
+        roles,
+        permissions,
       },
       options.secret,
       {

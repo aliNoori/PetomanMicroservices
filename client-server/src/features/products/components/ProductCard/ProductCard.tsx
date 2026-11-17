@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 
 import { Card } from "../../../../components/common/Card";
 import type { ProductCardProps } from "./ProductCard.types";
@@ -166,7 +166,6 @@ export function ProductCard({
     product.price.discountPercentage > 0 &&
     product.price.originalAmount !== undefined;
 
-  const discountedAmount = product.price.amount;
   const displayPrice = product.price.formatted;
 
   const savings = hasDiscount
@@ -174,11 +173,13 @@ export function ProductCard({
     : 0;
 
   const formattedSavings = hasDiscount
-    ? new Intl.NumberFormat(undefined, {
-        style: "currency",
-        currency: product.price.currency,
-        maximumFractionDigits: 2,
-      }).format(savings)
+    ? product.price.currency
+      ? new Intl.NumberFormat(undefined, {
+          style: "currency",
+          currency: product.price.currency,
+          maximumFractionDigits: 2,
+        }).format(savings)
+      : `${new Intl.NumberFormat("en-US").format(savings)} تومان`
     : "";
 
   /**
@@ -473,13 +474,17 @@ export function ProductCard({
         {/* META */}
         <div className="flex min-h-5 items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">
-            <span className="truncate text-[11px] font-bold uppercase tracking-[0.14em] text-primary">
-              {product.category}
-            </span>
+            {product.category && (
+              <span className="truncate text-[11px] font-bold uppercase tracking-[0.14em] text-primary">
+                {product.category}
+              </span>
+            )}
 
             {product.brand && (
               <>
-                <span className="text-text-muted/40">•</span>
+                {product.category && (
+                  <span className="text-text-muted/40">•</span>
+                )}
 
                 <span className="truncate text-xs text-text-muted">
                   {product.brand}

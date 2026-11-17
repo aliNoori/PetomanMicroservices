@@ -5,6 +5,7 @@ use App\Http\Middleware\TenantContextMiddleware;
 use App\Http\Middleware\VerifyInternalJwt;
 use App\Http\Middleware\VerifyJwt;
 use Illuminate\Support\Facades\Route;
+use App\Http\Middleware\RequirePermission;
 
 /*
 |--------------------------------------------------------------------------
@@ -94,6 +95,7 @@ Route::middleware(VerifyJwt::class)->group(function () {
 |--------------------------------------------------------------------------
 */
 
+
 Route::middleware([
     VerifyInternalJwt::class,
     TenantContextMiddleware::class,
@@ -102,42 +104,66 @@ Route::middleware([
     Route::get(
         '/products',
         [ProductController::class, 'index'],
-    );
+    )->middleware(RequirePermission::class . ':product.read');
 
     Route::get(
         '/products/{productId}',
         [ProductController::class, 'show'],
-    );
+    )->middleware(RequirePermission::class . ':product.read');
 
     Route::post(
         '/products',
         [ProductController::class, 'store'],
-    );
+    )->middleware(RequirePermission::class . ':product.create');
 
     Route::put(
         '/products/{productId}',
         [ProductController::class, 'update'],
-    );
+    )->middleware(RequirePermission::class . ':product.update');
 
     Route::delete(
         '/products/{productId}',
         [ProductController::class, 'destroy'],
+    )->middleware(RequirePermission::class . ':product.delete');
+});
+
+
+/*
+|--------------------------------------------------------------------------
+| Internal Gateway Public Product Routes
+|--------------------------------------------------------------------------
+|
+| GET /api/public/products
+|
+| Accessible only through the trusted Gateway.
+|
+*/
+
+Route::middleware([
+    VerifyInternalJwt::class,
+    TenantContextMiddleware::class,
+])->group(function () {
+    Route::get(
+        '/public/products',
+        [ProductController::class, 'publicIndex'],
     );
 });
 
 
 /*
 |--------------------------------------------------------------------------
-| Public Products
+| Internal Gateway Home Products Route
 |--------------------------------------------------------------------------
 |
-| GET /api/public/stores/{storeSlug}/products
+| POST /api/internal/public/home-products
 |
-| No authentication required.
+| Accessible only through a GLOBAL service token issued by the Gateway.
 |
 */
 
-Route::get(
-    '/public/stores/{storeSlug}/products',
-    [ProductController::class, 'publicIndex'],
-);
+Route::middleware(VerifyInternalJwt::class)->group(function () {
+    Route::post(
+        '/internal/public/home-products',
+        [ProductController::class, 'homeIndex'],
+    );
+});

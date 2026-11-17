@@ -26,8 +26,8 @@ export default new DataSource({
   ],
 
   migrations: [
-    //'dist/database/migrations/*.js',
-    'src/database/migrations/*.ts',
+    'dist/database/migrations/*.js',
+    //'src/database/migrations/*.ts',
   ],
 
   synchronize: false,
