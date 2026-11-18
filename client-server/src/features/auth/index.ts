@@ -30,6 +30,7 @@ export type {
   RefreshTokenRequest,
   RefreshTokenResponse,
   AuthState,
+  TenantOption
 } from "./types";
 
 export type {

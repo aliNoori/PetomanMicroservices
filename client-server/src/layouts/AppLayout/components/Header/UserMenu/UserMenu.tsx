@@ -11,67 +11,36 @@ import type { UserMenuProps } from "./UserMenu.types";
 /**
  * User menu.
  *
- * Provides authenticated user identity
- * and user-specific application actions.
- *
- * Responsibilities:
- * - Display authenticated user identity.
- * - Provide deterministic avatar fallback.
- * - Toggle the user dropdown.
- * - Navigate to the profile page.
- * - Trigger logout through AuthContext.
- * - Handle outside-click dismissal.
- * - Prevent duplicate logout requests.
- *
- * Responsive behavior:
- * - Mobile: compact avatar-based trigger.
- * - Desktop: avatar, name, email, and chevron.
- *
- * Non-responsibilities:
- * - Authentication state management.
- * - Token storage.
- * - Authorization rules.
+ * Provides authenticated user identity,
+ * tenant switching, and user-specific actions.
  */
 export function UserMenu({ children }: UserMenuProps) {
-  const { user, logout } = useAuth();
+  const { user, logout, tenants, selectedTenant, selectTenant } = useAuth();
 
   const navigate = useNavigate();
 
   const [isOpen, setIsOpen] = useState(false);
-
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [switchingTenantId, setSwitchingTenantId] = useState<string | null>(
+    null,
+  );
+  const [tenantSwitchError, setTenantSwitchError] = useState<string | null>(
+    null,
+  );
 
   const containerRef = useRef<HTMLDivElement>(null);
 
-  /**
-   * Resolve the user's display name.
-   *
-   * Prefer first and last name.
-   * Fall back to email when no name exists.
-   */
   const fullName =
     [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
     user?.email ||
     "User";
 
-  /**
-   * Resolve the avatar fallback character.
-   *
-   * Priority:
-   * 1. First name initial.
-   * 2. Email initial.
-   * 3. Generic user fallback.
-   */
   const avatarInitial = (
     user?.firstName?.charAt(0) ||
     user?.email?.charAt(0) ||
     "U"
   ).toUpperCase();
 
-  /**
-   * Close the dropdown when the user clicks
-   * outside the UserMenu boundary.
-   */
   useEffect(() => {
     if (!isOpen) {
       return;
@@ -92,23 +61,50 @@ export function UserMenu({ children }: UserMenuProps) {
     };
   }, [isOpen]);
 
-  /**
-   * Navigate to the profile page
-   * and close the dropdown.
-   */
   const handleProfile = () => {
     setIsOpen(false);
-
     navigate("/profile");
   };
 
-  /**
-   * Execute logout through the authentication
-   * context.
-   *
-   * AuthGuard remains responsible for redirecting
-   * unauthenticated users to the login page.
-   */
+  const handleCreateWorkspace = () => {
+    setIsOpen(false);
+    navigate("/tenants/create");
+  };
+
+  const handleTenantSwitch = async (tenantId: string) => {
+    if (switchingTenantId !== null) {
+      return;
+    }
+
+    // Navigate directly when the selected tenant is already active.
+    if (tenantId === selectedTenant?.id) {
+      setIsOpen(false);
+
+      navigate(`/workspace/${tenantId}/dashboard`, {
+        replace: true,
+      });
+
+      return;
+    }
+
+    setSwitchingTenantId(tenantId);
+    setTenantSwitchError(null);
+
+    try {
+      await selectTenant(tenantId);
+
+      setIsOpen(false);
+
+      navigate(`/workspace/${tenantId}/dashboard`, {
+        replace: true,
+      });
+    } catch {
+      setTenantSwitchError("Unable to switch workspace. Please try again.");
+    } finally {
+      setSwitchingTenantId(null);
+    }
+  };
+
   const handleLogout = async () => {
     if (isLoggingOut) {
       return;
@@ -118,7 +114,6 @@ export function UserMenu({ children }: UserMenuProps) {
 
     try {
       await logout();
-
       setIsOpen(false);
     } finally {
       setIsLoggingOut(false);
@@ -152,16 +147,11 @@ export function UserMenu({ children }: UserMenuProps) {
           sm:px-2
         "
       >
-        {/* Avatar */}
-
         <UserAvatar
           avatarUrl={user?.avatarUrl}
           fallback={avatarInitial}
           size="sm"
         />
-
-        {/* User identity.
-            Hidden on mobile to prevent header overflow. */}
 
         <div className="hidden min-w-0 sm:block">
           <p
@@ -189,8 +179,6 @@ export function UserMenu({ children }: UserMenuProps) {
             {user?.email ?? "No email available"}
           </p>
         </div>
-
-        {/* Dropdown indicator */}
 
         <svg
           className={[
@@ -284,9 +272,128 @@ export function UserMenu({ children }: UserMenuProps) {
             </div>
           </div>
 
+          {/* Tenant switcher */}
+
+          {tenants.length >= 1 && (
+            <div className="border-b border-border p-3">
+              <p
+                className="
+                  mb-2
+                  px-1
+                  text-xs
+                  font-semibold
+                  text-text-secondary
+                "
+              >
+                Your workspaces
+              </p>
+
+              <div className="space-y-1">
+                {tenants.map((tenant) => {
+                  const isSelected = selectedTenant?.id === tenant.id;
+                  const isSwitching = switchingTenantId === tenant.id;
+
+                  return (
+                    <button
+                      key={tenant.id}
+                      type="button"
+                      role="menuitem"
+                      disabled={switchingTenantId !== null}
+                      aria-current={isSelected ? "page" : undefined}
+                      onClick={() => handleTenantSwitch(tenant.id)}
+                      className={[
+                        "flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left transition",
+                        isSelected
+                          ? "bg-surface-secondary text-text-primary"
+                          : "text-text-secondary hover:bg-surface-secondary hover:text-text-primary",
+                        "focus:outline-none focus:ring-2 focus:ring-primary/30",
+                        "disabled:cursor-not-allowed disabled:opacity-60",
+                      ].join(" ")}
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-medium">
+                          {tenant.name}
+                        </span>
+
+                        <span className="mt-0.5 block truncate text-xs text-text-muted">
+                          {tenant.slug}
+                        </span>
+                      </span>
+
+                      {isSwitching ? (
+                        <span
+                          className="shrink-0 text-xs text-text-muted"
+                          aria-live="polite"
+                        >
+                          Switching...
+                        </span>
+                      ) : isSelected ? (
+                        <svg
+                          className="h-4 w-4 shrink-0 text-primary"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                          aria-hidden="true"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M16.704 5.29a1 1 0 010 1.415l-7.25 7.25a1 1 0 01-1.415 0l-3.5-3.5a1 1 0 011.415-1.415l2.793 2.793 6.543-6.543a1 1 0 011.414 0z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {tenantSwitchError && (
+                <p role="alert" className="mt-2 px-1 text-xs text-red-600">
+                  {tenantSwitchError}
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Menu items */}
 
           <div className="p-1">
+            <button
+              type="button"
+              role="menuitem"
+              onClick={handleCreateWorkspace}
+              className="
+    flex
+    w-full
+    items-center
+    gap-3
+    rounded-lg
+    px-3
+    py-2.5
+    text-sm
+    font-medium
+    text-text-primary
+    transition
+    hover:bg-surface-secondary
+    focus:outline-none
+    focus:ring-2
+    focus:ring-primary/30
+  "
+            >
+              <svg
+                className="h-4 w-4 shrink-0 text-text-secondary"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M12 5v14" />
+                <path d="M5 12h14" />
+              </svg>
+              Create workspace
+            </button>
             <button
               type="button"
               role="menuitem"
@@ -320,7 +427,6 @@ export function UserMenu({ children }: UserMenuProps) {
                 aria-hidden="true"
               >
                 <path d="M20 21a8 8 0 0 0-16 0" />
-
                 <circle cx="12" cy="7" r="4" />
               </svg>
               Profile
@@ -363,9 +469,7 @@ export function UserMenu({ children }: UserMenuProps) {
                 aria-hidden="true"
               >
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-
                 <polyline points="16 17 21 12 16 7" />
-
                 <line x1="21" y1="12" x2="9" y2="12" />
               </svg>
 
