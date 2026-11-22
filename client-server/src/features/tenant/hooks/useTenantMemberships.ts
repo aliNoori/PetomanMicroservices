@@ -13,7 +13,11 @@ interface UseTenantMembershipsReturn {
   memberships: TenantMembership[];
   loading: boolean;
   error: string | null;
+  actionError: string | null;
+  processingMembershipId: string | null;
   refresh: () => Promise<void>;
+  approveMembership: (membershipId: string) => Promise<void>;
+  rejectMembership: (membershipId: string) => Promise<void>;
 }
 
 export function useTenantMemberships(
@@ -23,6 +27,10 @@ export function useTenantMemberships(
   const [memberships, setMemberships] = useState<TenantMembership[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [processingMembershipId, setProcessingMembershipId] = useState<
+    string | null
+  >(null);
 
   const refresh = useCallback(async (): Promise<void> => {
     if (!tenantId) {
@@ -50,6 +58,44 @@ export function useTenantMemberships(
     }
   }, [tenantId]);
 
+  const approveMembership = useCallback(
+    async (membershipId: string): Promise<void> => {
+      if (processingMembershipId) return;
+
+      setProcessingMembershipId(membershipId);
+      setActionError(null);
+
+      try {
+        await tenantService.approveTenantMembership(membershipId);
+        await refresh();
+      } catch {
+        setActionError("Failed to approve membership request.");
+      } finally {
+        setProcessingMembershipId(null);
+      }
+    },
+    [processingMembershipId, refresh],
+  );
+
+  const rejectMembership = useCallback(
+    async (membershipId: string): Promise<void> => {
+      if (processingMembershipId) return;
+
+      setProcessingMembershipId(membershipId);
+      setActionError(null);
+
+      try {
+        await tenantService.rejectTenantMembership(membershipId);
+        await refresh();
+      } catch {
+        setActionError("Failed to reject membership request.");
+      } finally {
+        setProcessingMembershipId(null);
+      }
+    },
+    [processingMembershipId, refresh],
+  );
+
   useEffect(() => {
     void refresh();
   }, [refresh]);
@@ -59,6 +105,10 @@ export function useTenantMemberships(
     memberships,
     loading,
     error,
+    actionError,
+    processingMembershipId,
     refresh,
+    approveMembership,
+    rejectMembership,
   };
 }

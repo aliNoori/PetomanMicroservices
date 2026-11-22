@@ -1,12 +1,6 @@
-
 import { useState } from "react";
 
-import {
-  Navigate,
-  useLocation,
-  Link,
-  useNavigate,
-} from "react-router-dom";
+import { Navigate, useLocation, Link, useNavigate } from "react-router-dom";
 
 import { useAuth } from "@/features/auth";
 
@@ -15,23 +9,31 @@ import type {
   ReturnToLocation,
 } from "@/features/auth/types";
 
-function getSafeReturnTo(
-  value?: ReturnToLocation,
-): ReturnToLocation | null {
+function getSafeReturnTo(value?: ReturnToLocation): ReturnToLocation | null {
   if (
     !value ||
     typeof value.pathname !== "string" ||
-    !value.pathname.startsWith("/") ||
+    !value.pathname.startsWith("/workspace/") ||
     value.pathname.startsWith("//")
   ) {
     return null;
   }
 
-  return {
-    pathname: value.pathname,
-    search: value.search ?? "",
-    hash: value.hash ?? "",
-  };
+  try {
+    const url = new URL(value.pathname, window.location.origin);
+
+    if (url.origin !== window.location.origin) {
+      return null;
+    }
+
+    return {
+      pathname: url.pathname,
+      search: value.search ?? "",
+      hash: value.hash ?? "",
+    };
+  } catch {
+    return null;
+  }
 }
 
 export function TenantSelectionPage() {
@@ -47,8 +49,7 @@ export function TenantSelectionPage() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [selectedTenantId, setSelectedTenantId] =
-    useState<string | null>(null);
+  const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -73,12 +74,19 @@ export function TenantSelectionPage() {
   }
 
   if (authenticated && selectedTenant) {
-    return (
-      <Navigate
-        to={`/workspace/${selectedTenant.id}/dashboard`}
-        replace
-      />
-    );
+    const tenantBasePath = `/workspace/${selectedTenant.id}`;
+
+    const isMatchingTenant =
+      returnTo?.pathname === tenantBasePath ||
+      returnTo?.pathname.startsWith(`${tenantBasePath}/`);
+
+    const destination = isMatchingTenant
+      ? returnTo!
+      : {
+          pathname: `${tenantBasePath}/dashboard`,
+        };
+
+    return <Navigate to={destination} replace />;
   }
 
   async function handleContinue(): Promise<void> {
@@ -92,9 +100,17 @@ export function TenantSelectionPage() {
     try {
       await selectTenant(selectedTenantId);
 
-      const destination = returnTo ?? {
-        pathname: `/workspace/${selectedTenantId}/dashboard`,
-      };
+      const tenantBasePath = `/workspace/${selectedTenantId}`;
+
+      const isMatchingTenant =
+        returnTo?.pathname === tenantBasePath ||
+        returnTo?.pathname.startsWith(`${tenantBasePath}/`);
+
+      const destination = isMatchingTenant
+        ? returnTo!
+        : {
+            pathname: `${tenantBasePath}/dashboard`,
+          };
 
       navigate(destination, {
         replace: true,
@@ -106,9 +122,7 @@ export function TenantSelectionPage() {
 
   return (
     <main className="mx-auto w-full max-w-xl p-6">
-      <h1 className="mb-2 text-2xl font-semibold">
-        Select a workspace
-      </h1>
+      <h1 className="mb-2 text-2xl font-semibold">Select a workspace</h1>
 
       <p className="mb-6 text-sm text-gray-500">
         Choose the tenant you want to continue with.
@@ -134,9 +148,7 @@ export function TenantSelectionPage() {
                   : "border-gray-200 hover:border-gray-400",
               ].join(" ")}
             >
-              <span className="block font-medium">
-                {tenant.name}
-              </span>
+              <span className="block font-medium">{tenant.name}</span>
 
               <span className="mt-1 block text-sm text-gray-500">
                 {tenant.slug}
@@ -146,11 +158,7 @@ export function TenantSelectionPage() {
         </div>
       )}
 
-      {error && (
-        <p className="mt-4 text-sm text-red-600">
-          {error}
-        </p>
-      )}
+      {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
 
       <div className="mt-8 border-t border-gray-200 pt-6">
         <p className="text-sm text-gray-500">

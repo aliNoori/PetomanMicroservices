@@ -1,0 +1,1 @@
+export { PendingTenantsPage } from "./PendingTenantsPage";

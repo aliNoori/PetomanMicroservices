@@ -1,4 +1,3 @@
-
 import { ForbiddenException } from '@nestjs/common';
 
 import { TenantService } from './tenant.service';
@@ -10,6 +9,10 @@ describe('TenantService', () => {
 
   const tenantRepository = {
     find: jest.fn(),
+    findOne: jest.fn(),
+  };
+
+  const userRepository = {
     findOne: jest.fn(),
   };
 
@@ -31,9 +34,12 @@ describe('TenantService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
+    userRepository.findOne.mockReset();
+
     service = new TenantService(
       dataSource as any,
       tenantRepository as any,
+      userRepository as any,
       tenantUserRepository as any,
     );
   });
@@ -146,10 +152,7 @@ describe('TenantService', () => {
         scope: InternalAuthScope.GLOBAL,
       } as any;
 
-      const result = await service.getTenantMemberships(
-        requester,
-        tenantId,
-      );
+      const result = await service.getTenantMemberships(requester, tenantId);
 
       expect(result.success).toBe(true);
 
@@ -186,17 +189,15 @@ describe('TenantService', () => {
         ],
       });
 
-      expect(
-        result.data.memberships[0].user,
-      ).not.toHaveProperty('passwordHash');
+      expect(result.data.memberships[0].user).not.toHaveProperty(
+        'passwordHash',
+      );
 
-      expect(
-        tenantUserRepository.findActiveMembership,
-      ).not.toHaveBeenCalled();
+      expect(tenantUserRepository.findActiveMembership).not.toHaveBeenCalled();
 
-      expect(
-        tenantUserRepository.findByTenantId,
-      ).toHaveBeenCalledWith(tenantId);
+      expect(tenantUserRepository.findByTenantId).toHaveBeenCalledWith(
+        tenantId,
+      );
     });
 
     it('should allow TENANT scope with an active membership', async () => {
@@ -206,20 +207,39 @@ describe('TenantService', () => {
         userId: 'user-a',
       } as any;
 
-      const result = await service.getTenantMemberships(
-        requester,
-        tenantId,
-      );
+      const result = await service.getTenantMemberships(requester, tenantId);
 
       expect(result.success).toBe(true);
 
-      expect(
-        tenantUserRepository.findActiveMembership,
-      ).toHaveBeenCalledWith(tenantId, 'user-a');
+      expect(tenantUserRepository.findActiveMembership).toHaveBeenCalledWith(
+        tenantId,
+        'user-a',
+      );
 
-      expect(
-        tenantUserRepository.findByTenantId,
-      ).toHaveBeenCalledWith(tenantId);
+      expect(tenantUserRepository.findByTenantId).toHaveBeenCalledWith(
+        tenantId,
+      );
+    });
+
+    it('should reject TENANT scope when the tenant is inactive', async () => {
+      tenantRepository.findOne.mockResolvedValue({
+        ...tenant,
+        status: TENANT_STATUS.PENDING,
+      });
+
+      const requester = {
+        scope: InternalAuthScope.TENANT,
+        tenantId,
+        userId: 'user-a',
+      } as any;
+
+      await expect(
+        service.getTenantMemberships(requester, tenantId),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+
+      expect(tenantUserRepository.findActiveMembership).not.toHaveBeenCalled();
+
+      expect(tenantUserRepository.findByTenantId).not.toHaveBeenCalled();
     });
 
     it('should reject access to a different tenant', async () => {
@@ -233,13 +253,9 @@ describe('TenantService', () => {
         service.getTenantMemberships(requester, tenantId),
       ).rejects.toBeInstanceOf(ForbiddenException);
 
-      expect(
-        tenantUserRepository.findActiveMembership,
-      ).not.toHaveBeenCalled();
+      expect(tenantUserRepository.findActiveMembership).not.toHaveBeenCalled();
 
-      expect(
-        tenantUserRepository.findByTenantId,
-      ).not.toHaveBeenCalled();
+      expect(tenantUserRepository.findByTenantId).not.toHaveBeenCalled();
     });
 
     it('should reject TENANT scope without an active membership', async () => {
@@ -255,9 +271,7 @@ describe('TenantService', () => {
         service.getTenantMemberships(requester, tenantId),
       ).rejects.toBeInstanceOf(ForbiddenException);
 
-      expect(
-        tenantUserRepository.findByTenantId,
-      ).not.toHaveBeenCalled();
+      expect(tenantUserRepository.findByTenantId).not.toHaveBeenCalled();
     });
 
     it('should throw when the tenant does not exist', async () => {
@@ -271,9 +285,93 @@ describe('TenantService', () => {
         service.getTenantMemberships(requester, tenantId),
       ).rejects.toThrow();
 
-      expect(
-        tenantUserRepository.findByTenantId,
-      ).not.toHaveBeenCalled();
+      expect(tenantUserRepository.findByTenantId).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('validateTenantContext', () => {
+    const userId = 'user-a';
+    const tenantId = 'tenant-a';
+
+    beforeEach(() => {
+      userRepository.findOne.mockResolvedValue({
+        id: userId,
+        isActive: true,
+      });
+
+      tenantRepository.findOne.mockResolvedValue({
+        id: tenantId,
+        status: TENANT_STATUS.ACTIVE,
+      });
+
+      tenantUserRepository.findActiveMembership.mockResolvedValue({
+        id: 'membership-a',
+        userId,
+        tenantId,
+        status: 'ACTIVE',
+      });
+    });
+
+    it('should validate an active user, tenant, and membership', async () => {
+      await expect(
+        service.validateTenantContext(userId, tenantId),
+      ).resolves.toBeUndefined();
+
+      expect(userRepository.findOne).toHaveBeenCalledWith({
+        where: { id: userId },
+        select: {
+          id: true,
+          isActive: true,
+        },
+      });
+
+      expect(tenantRepository.findOne).toHaveBeenCalledWith({
+        where: { id: tenantId },
+        select: {
+          id: true,
+          status: true,
+        },
+      });
+
+      expect(tenantUserRepository.findActiveMembership).toHaveBeenCalledWith(
+        tenantId,
+        userId,
+      );
+    });
+
+    it('should reject an inactive user', async () => {
+      userRepository.findOne.mockResolvedValue({
+        id: userId,
+        isActive: false,
+      });
+
+      await expect(
+        service.validateTenantContext(userId, tenantId),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(tenantRepository.findOne).not.toHaveBeenCalled();
+      expect(tenantUserRepository.findActiveMembership).not.toHaveBeenCalled();
+    });
+
+    it('should reject an inactive tenant', async () => {
+      tenantRepository.findOne.mockResolvedValue({
+        id: tenantId,
+        status: TENANT_STATUS.PENDING,
+      });
+
+      await expect(
+        service.validateTenantContext(userId, tenantId),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(tenantUserRepository.findActiveMembership).not.toHaveBeenCalled();
+    });
+
+    it('should reject a user without active membership', async () => {
+      tenantUserRepository.findActiveMembership.mockResolvedValue(null);
+
+      await expect(
+        service.validateTenantContext(userId, tenantId),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 });

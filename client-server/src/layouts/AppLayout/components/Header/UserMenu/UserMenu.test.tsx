@@ -378,4 +378,163 @@ describe("UserMenu tenant switcher", () => {
       expect(screen.queryByRole("menu")).not.toBeInTheDocument();
     });
   });
+  it("shows the my workspaces option when the menu is opened", async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(useAuth).mockReturnValue(
+      createAuthContext({
+        tenants: [],
+        selectedTenant: null,
+      }),
+    );
+
+    renderUserMenu();
+
+    await user.click(
+      screen.getByRole("button", { name: /user menu for ali noori/i }),
+    );
+
+    expect(
+      screen.getByRole("menuitem", { name: /my workspaces/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("navigates to my workspaces and closes the menu", async () => {
+    const user = userEvent.setup();
+
+    renderUserMenu();
+
+    await user.click(
+      screen.getByRole("button", { name: /user menu for ali noori/i }),
+    );
+
+    await user.click(screen.getByRole("menuitem", { name: /my workspaces/i }));
+
+    expect(await screen.findByTestId("location")).toHaveTextContent(
+      "/my-workspaces",
+    );
+
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+  it("logs out successfully and closes the menu", async () => {
+    const user = userEvent.setup();
+
+    const logout = vi.fn().mockResolvedValue(undefined);
+
+    vi.mocked(useAuth).mockReturnValue(createAuthContext({ logout }));
+
+    renderUserMenu();
+
+    await user.click(
+      screen.getByRole("button", { name: /user menu for ali noori/i }),
+    );
+
+    await user.click(screen.getByRole("menuitem", { name: /logout/i }));
+
+    await waitFor(() => {
+      expect(logout).toHaveBeenCalledOnce();
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    });
+  });
+
+  it("shows platform administration for SUPER_ADMIN", async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(useAuth).mockReturnValue(
+      createAuthContext({
+        user: {
+          ...authUser,
+          systemRoles: ["SUPER_ADMIN"],
+        },
+      }),
+    );
+
+    renderUserMenu();
+
+    await user.click(
+      screen.getByRole("button", { name: /user menu for ali noori/i }),
+    );
+
+    expect(
+      screen.getByRole("menuitem", { name: /platform administration/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("navigates SUPER_ADMIN to platform administration and closes the menu", async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(useAuth).mockReturnValue(
+      createAuthContext({
+        user: {
+          ...authUser,
+          systemRoles: ["SUPER_ADMIN"],
+        },
+      }),
+    );
+
+    renderUserMenu();
+
+    await user.click(
+      screen.getByRole("button", { name: /user menu for ali noori/i }),
+    );
+
+    await user.click(
+      screen.getByRole("menuitem", { name: /platform administration/i }),
+    );
+
+    expect(await screen.findByTestId("location")).toHaveTextContent(
+      "/admin/tenants/pending",
+    );
+
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("does not show platform administration for regular users", async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(useAuth).mockReturnValue(
+      createAuthContext({
+        user: {
+          ...authUser,
+          systemRoles: [],
+        },
+      }),
+    );
+
+    renderUserMenu();
+
+    await user.click(
+      screen.getByRole("button", { name: /user menu for ali noori/i }),
+    );
+
+    expect(
+      screen.queryByRole("menuitem", { name: /platform administration/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps the menu open and restores the logout button when logout fails", async () => {
+    const user = userEvent.setup();
+
+    const logout = vi.fn().mockRejectedValue(new Error("Logout failed"));
+
+    vi.mocked(useAuth).mockReturnValue(createAuthContext({ logout }));
+
+    renderUserMenu();
+
+    await user.click(
+      screen.getByRole("button", { name: /user menu for ali noori/i }),
+    );
+
+    await user.click(screen.getByRole("menuitem", { name: /logout/i }));
+
+    await waitFor(() => {
+      expect(logout).toHaveBeenCalledOnce();
+      expect(screen.getByRole("menuitem", { name: /logout/i })).toBeEnabled();
+    });
+
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Unable to log out. Please try again.",
+    );
+  });
 });

@@ -19,6 +19,17 @@ export enum GatewayAuthMode {
   JWT = 'JWT',
 }
 
+export enum GatewayTenantContext {
+  NONE = 'NONE',
+  OPTIONAL = 'OPTIONAL',
+  REQUIRED = 'REQUIRED',
+}
+
+export enum GatewayTenantResolution {
+  NONE = 'NONE',
+  STORE_SLUG = 'STORE_SLUG',
+}
+
 /**
  * Base properties shared by every Gateway route.
  */
@@ -52,6 +63,25 @@ interface GatewayRouteBase {
    * Multiple permissions use OR semantics.
    */
   permissions?: readonly string[];
+
+  /**
+   * Tenant context validation policy.
+   *
+   * NONE:
+   *   No tenant validation is required.
+   *
+   * OPTIONAL:
+   *   Validate the selected tenant when one exists.
+   *
+   * REQUIRED:
+   *   An active tenant and active membership are mandatory.
+   */
+  tenantContext?: GatewayTenantContext;
+
+  /**
+   * Resolves a tenant for public tenant-scoped resources.
+   */
+  tenantResolution?: GatewayTenantResolution;
 }
 
 /**

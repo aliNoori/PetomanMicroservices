@@ -154,6 +154,37 @@ describe('TenantResolverService', () => {
     );
   });
 
+  it('should reject a malformed tenant response', async () => {
+    jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('invalid-json', {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    await expect(service.resolveBySlug('store-001')).rejects.toBeInstanceOf(
+      ServiceUnavailableException,
+    );
+  });
+
+  it('should reject a tenant that is not ACTIVE', async () => {
+    jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: 'tenant-001',
+          status: 'INACTIVE',
+        }),
+        { status: 200 },
+      ),
+    );
+
+    await expect(service.resolveBySlug('store-001')).rejects.toBeInstanceOf(
+      ServiceUnavailableException,
+    );
+  });
+
   it('should encode the store slug in the request URL', async () => {
     const fetchMock = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(

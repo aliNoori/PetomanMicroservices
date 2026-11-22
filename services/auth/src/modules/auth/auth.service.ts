@@ -488,7 +488,7 @@ export class AuthService {
         };
       }
 
-      const tenantId = currentToken.tenantId;
+      let tenantId = currentToken.tenantId;
 
       // Revalidate the selected tenant and membership.
       if (tenantId) {
@@ -506,16 +506,8 @@ export class AuthService {
         });
 
         if (!membership || membership.tenant.status !== TENANT_STATUS.ACTIVE) {
-          await this.revokeSessionFamily(
-            manager,
-            currentToken.userId,
-            currentToken.familyId,
-            now,
-          );
-
-          return {
-            status: 'invalid_tenant_context' as const,
-          };
+          // Preserve the account session but remove the invalid tenant context.
+          tenantId = null;
         }
       }
 
@@ -635,11 +627,6 @@ export class AuthService {
           message: 'User account is inactive.',
         });
 
-      case 'invalid_tenant_context':
-        throw new UnauthorizedException({
-          code: AUTH_ERROR_CODES.UNAUTHORIZED,
-          message: 'Tenant membership is no longer active.',
-        });
 
       case 'success':
         return {
@@ -1656,58 +1643,58 @@ export class AuthService {
   // Create Tenant
   // ============================================================
 
-  async createTenant(ownerId: string, name: string, slug: string) {
-    const owner = await this.userRepository.findOne({
-      where: {
-        id: ownerId,
-      },
-    });
+  // async createTenant(ownerId: string, name: string, slug: string) {
+  //   const owner = await this.userRepository.findOne({
+  //     where: {
+  //       id: ownerId,
+  //     },
+  //   });
 
-    if (!owner) {
-      throw new NotFoundException({
-        code: AUTH_ERROR_CODES.USER_NOT_FOUND,
-      });
-    }
+  //   if (!owner) {
+  //     throw new NotFoundException({
+  //       code: AUTH_ERROR_CODES.USER_NOT_FOUND,
+  //     });
+  //   }
 
-    if (!owner.isActive) {
-      throw new UnauthorizedException({
-        code: AUTH_ERROR_CODES.USER_INACTIVE,
-      });
-    }
+  //   if (!owner.isActive) {
+  //     throw new UnauthorizedException({
+  //       code: AUTH_ERROR_CODES.USER_INACTIVE,
+  //     });
+  //   }
 
-    const normalizedName = name.trim();
-    const normalizedSlug = slug.trim().toLowerCase();
+  //   const normalizedName = name.trim();
+  //   const normalizedSlug = slug.trim().toLowerCase();
 
-    const existingTenant = await this.tenantRepository.findOne({
-      where: {
-        slug: normalizedSlug,
-      },
-    });
+  //   const existingTenant = await this.tenantRepository.findOne({
+  //     where: {
+  //       slug: normalizedSlug,
+  //     },
+  //   });
 
-    if (existingTenant) {
-      throw new ConflictException({
-        code: AUTH_ERROR_CODES.TENANT_SLUG_ALREADY_EXISTS,
-        message: 'A tenant with this slug already exists.',
-      });
-    }
+  //   if (existingTenant) {
+  //     throw new ConflictException({
+  //       code: AUTH_ERROR_CODES.TENANT_SLUG_ALREADY_EXISTS,
+  //       message: 'A tenant with this slug already exists.',
+  //     });
+  //   }
 
-    const tenant = this.tenantRepository.create({
-      name: normalizedName,
-      slug: normalizedSlug,
-      ownerId: owner.id,
-      status: TENANT_STATUS.PENDING,
-    });
+  //   const tenant = this.tenantRepository.create({
+  //     name: normalizedName,
+  //     slug: normalizedSlug,
+  //     ownerId: owner.id,
+  //     status: TENANT_STATUS.PENDING,
+  //   });
 
-    const savedTenant = await this.tenantRepository.save(tenant);
+  //   const savedTenant = await this.tenantRepository.save(tenant);
 
-    return {
-      id: savedTenant.id,
-      name: savedTenant.name,
-      slug: savedTenant.slug,
-      ownerId: savedTenant.ownerId,
-      status: savedTenant.status,
-    };
-  }
+  //   return {
+  //     id: savedTenant.id,
+  //     name: savedTenant.name,
+  //     slug: savedTenant.slug,
+  //     ownerId: savedTenant.ownerId,
+  //     status: savedTenant.status,
+  //   };
+  // }
 
   // ============================================================
   // Approve Tenant
@@ -2658,3 +2645,6 @@ export class AuthService {
     return result.affected ?? 0;
   }
 }
+
+
+

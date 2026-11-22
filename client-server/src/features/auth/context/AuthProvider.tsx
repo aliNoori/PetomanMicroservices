@@ -1,4 +1,3 @@
-
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 
 import { authService } from "../services";
@@ -9,14 +8,16 @@ import { AuthContext } from "./AuthContext";
 
 import { initialAuthState } from "../store/auth.store";
 
+import { refreshSession } from "@/lib/api/refresh-manager";
+
 import type {
   AuthUser,
+  AuthTenantMembership,
   LoginRequest,
   LoginResponse,
   ChangePasswordRequest,
   TenantOption,
 } from "../types";
-import { TenantType } from "@/features/tenant";
 
 interface Props {
   children: ReactNode;
@@ -34,27 +35,13 @@ interface AuthContextFromToken {
   permissions: string[];
 }
 
-interface TenantMembership {
-  status?: string;
-  tenantId?: string;
-  tenant?: {
-    id?: string;
-    name?: string;
-    slug?: string;
-    type?: TenantType;
-    status?: string;
-  };
-}
-
 /**
  * Decode the access token and extract the active authentication context.
  *
  * This is used only for UI context restoration.
  * Authorization decisions must always be enforced by the backend.
  */
-function getAuthContextFromAccessToken(
-  token: string,
-): AuthContextFromToken {
+function getAuthContextFromAccessToken(token: string): AuthContextFromToken {
   const parts = token.split(".");
 
   if (parts.length !== 3) {
@@ -63,32 +50,23 @@ function getAuthContextFromAccessToken(
 
   const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
 
-  const paddedBase64 = base64.padEnd(
-    Math.ceil(base64.length / 4) * 4,
-    "=",
-  );
+  const paddedBase64 = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
 
-  const payload = JSON.parse(
-    window.atob(paddedBase64),
-  ) as JwtPayload;
+  const payload = JSON.parse(window.atob(paddedBase64)) as JwtPayload;
 
   return {
     tenantId:
-      typeof payload.tenantId === "string" &&
-      payload.tenantId.length > 0
+      typeof payload.tenantId === "string" && payload.tenantId.length > 0
         ? payload.tenantId
         : null,
 
     roles: Array.isArray(payload.roles)
-      ? payload.roles.filter(
-          (role): role is string => typeof role === "string",
-        )
+      ? payload.roles.filter((role): role is string => typeof role === "string")
       : [],
 
     permissions: Array.isArray(payload.permissions)
       ? payload.permissions.filter(
-          (permission): permission is string =>
-            typeof permission === "string",
+          (permission): permission is string => typeof permission === "string",
         )
       : [],
   };
@@ -99,31 +77,20 @@ function getAuthContextFromAccessToken(
  */
 function getActiveTenants(user: AuthUser): TenantOption[] {
   return user.tenantMemberships
-    .filter((item): item is TenantMembership => {
-      if (!item || typeof item !== "object") {
-        return false;
-      }
-
-      const membership = item as TenantMembership;
-
+    .filter((membership: AuthTenantMembership) => {
       return (
-        membership.status?.toLowerCase() === "active" &&
-        membership.tenant?.status?.toLowerCase() === "active" &&
-        typeof membership.tenant.id === "string" &&
-        typeof membership.tenant.name === "string" &&
-        typeof membership.tenant.slug === "string" &&
-        typeof membership.tenant.type === "string"
+        membership.status === "ACTIVE" && membership.tenant.status === "ACTIVE"
       );
     })
     .map((membership) => ({
-      id: membership.tenant!.id!,
-      name: membership.tenant!.name!,
-      slug: membership.tenant!.slug!,
-      type: membership.tenant!.type!,
+      id: membership.tenant.id,
+      name: membership.tenant.name,
+      slug: membership.tenant.slug,
+      type: membership.tenant.type,
     }));
 }
 
-let refreshPromise: Promise<AuthUser | null> | null = null;
+let restoreSessionPromise: Promise<AuthUser | null> | null = null;
 
 export function AuthProvider({ children }: Props) {
   const [state, setState] = useState(initialAuthState);
@@ -135,16 +102,35 @@ export function AuthProvider({ children }: Props) {
    * The backend preserves the selected tenant context during rotation.
    */
   const refreshUser = useCallback(async (): Promise<AuthUser | null> => {
-    if (refreshPromise) {
-      return refreshPromise;
+    if (restoreSessionPromise) {
+      return restoreSessionPromise;
     }
 
     const operation = (async (): Promise<AuthUser | null> => {
-      const refreshToken = tokenStorage.getRefreshToken();
+      setState((previous) => ({
+        ...previous,
+        loading: true,
+      }));
 
-      if (!refreshToken) {
-        tokenStorage.clear();
+      let response: Awaited<ReturnType<typeof refreshSession>>;
 
+      // Refresh Manager handles token rotation and token storage.
+      try {
+        response = await refreshSession();
+      } catch (error) {
+        console.error("[AuthProvider] Session refresh failed:", error);
+
+        // Preserve the existing tokens when the refresh failure is temporary.
+        setState((previous) => ({
+          ...previous,
+          loading: false,
+        }));
+
+        throw error;
+      }
+
+      // A null result means the refresh session is no longer valid.
+      if (!response) {
         setState({
           ...initialAuthState,
           loading: false,
@@ -153,23 +139,8 @@ export function AuthProvider({ children }: Props) {
         return null;
       }
 
-      setState((previous) => ({
-        ...previous,
-        loading: true,
-      }));
-
       try {
-        // Rotate the refresh token and obtain a fresh access token.
-        const response = await authService.refresh({
-          refresh_token: refreshToken,
-        });
-
-        tokenStorage.setAccessToken(response.accessToken);
-        tokenStorage.setRefreshToken(response.refreshToken);
-
-        const authContext = getAuthContextFromAccessToken(
-          response.accessToken,
-        );
+        const authContext = getAuthContextFromAccessToken(response.accessToken);
 
         // Load the user's profile using the fresh access token.
         const user = await authService.getMe();
@@ -194,19 +165,21 @@ export function AuthProvider({ children }: Props) {
 
         // Find the selected tenant in the user's active memberships.
         const selectedTenant =
-          tenants.find(
-            (tenant) => tenant.id === authContext.tenantId,
-          ) ?? null;
+          tenants.find((tenant) => tenant.id === authContext.tenantId) ?? null;
 
         if (!selectedTenant) {
-          tokenStorage.clear();
-
           setState({
-            ...initialAuthState,
+            user,
+            tenants,
+            selectedTenant: null,
+            roles: [],
+            permissions: [],
             loading: false,
+            authenticated: false,
+            sessionActive: true,
           });
 
-          return null;
+          return user;
         }
 
         setState({
@@ -222,29 +195,25 @@ export function AuthProvider({ children }: Props) {
 
         return user;
       } catch (error) {
-        console.error(
-          "[AuthProvider] Session restoration failed:",
-          error,
-        );
+        console.error("[AuthProvider] Session restoration failed:", error);
 
-        tokenStorage.clear();
-
-        setState({
-          ...initialAuthState,
+        // Do not destroy a potentially valid session because profile loading failed.
+        setState((previous) => ({
+          ...previous,
           loading: false,
-        });
+        }));
 
         throw error;
       }
     })();
 
-    refreshPromise = operation;
+    restoreSessionPromise = operation;
 
     try {
       return await operation;
     } finally {
-      if (refreshPromise === operation) {
-        refreshPromise = null;
+      if (restoreSessionPromise === operation) {
+        restoreSessionPromise = null;
       }
     }
   }, []);
@@ -265,9 +234,7 @@ export function AuthProvider({ children }: Props) {
         const response = await authService.login(payload);
 
         if (!response.accessToken || !response.refreshToken) {
-          throw new Error(
-            "Login response is missing authentication tokens.",
-          );
+          throw new Error("Login response is missing authentication tokens.");
         }
 
         tokenStorage.setAccessToken(response.accessToken);
@@ -302,85 +269,78 @@ export function AuthProvider({ children }: Props) {
   /**
    * Select a tenant and establish the tenant-scoped session.
    */
-  const selectTenant = useCallback(
-    async (tenantId: string): Promise<void> => {
-      const refreshToken = tokenStorage.getRefreshToken();
+  const selectTenant = useCallback(async (tenantId: string): Promise<void> => {
+    const refreshToken = tokenStorage.getRefreshToken();
 
-      if (!refreshToken) {
-        throw new Error("No active login session was found.");
+    if (!refreshToken) {
+      throw new Error("No active login session was found.");
+    }
+
+    setState((previous) => ({
+      ...previous,
+      loading: true,
+    }));
+
+    try {
+      const response = await authService.selectTenant({
+        tenantId,
+        refresh_token: refreshToken,
+      });
+
+      if (!response.accessToken) {
+        throw new Error("Tenant selection response is missing accessToken.");
       }
 
+      if (
+        !Array.isArray(response.roles) ||
+        !Array.isArray(response.permissions)
+      ) {
+        throw new Error(
+          "Tenant selection response contains invalid access context.",
+        );
+      }
+
+      // The backend keeps the existing refresh token unchanged.
+      tokenStorage.setAccessToken(response.accessToken);
+
+      // Retrieve the profile with the new tenant-scoped access token.
+      const user = await authService.getMe();
+
+      const tenants = getActiveTenants(user);
+
+      const selectedTenant =
+        tenants.find((tenant) => tenant.id === response.tenant.id) ?? null;
+
+      if (!selectedTenant) {
+        throw new Error(
+          "The selected tenant is not available in the user profile.",
+        );
+      }
+
+      setState({
+        user,
+        tenants,
+        selectedTenant,
+        roles: response.roles,
+        permissions: response.permissions,
+        loading: false,
+        authenticated: true,
+        sessionActive: true,
+      });
+    } catch (error) {
+      // Keep the login session so the user can retry or restore it.
       setState((previous) => ({
         ...previous,
-        loading: true,
+        loading: false,
+        authenticated: false,
+        roles: [],
+        permissions: [],
+        selectedTenant: null,
       }));
 
-      try {
-        const response = await authService.selectTenant({
-          tenantId,
-          refresh_token: refreshToken,
-        });
-
-        if (!response.accessToken) {
-          throw new Error(
-            "Tenant selection response is missing accessToken.",
-          );
-        }
-
-        if (
-          !Array.isArray(response.roles) ||
-          !Array.isArray(response.permissions)
-        ) {
-          throw new Error(
-            "Tenant selection response contains invalid access context.",
-          );
-        }
-
-        // The backend keeps the existing refresh token unchanged.
-        tokenStorage.setAccessToken(response.accessToken);
-
-        // Retrieve the profile with the new tenant-scoped access token.
-        const user = await authService.getMe();
-
-        const tenants = getActiveTenants(user);
-
-        const selectedTenant =
-          tenants.find(
-            (tenant) => tenant.id === response.tenant.id,
-          ) ?? null;
-
-        if (!selectedTenant) {
-          throw new Error(
-            "The selected tenant is not available in the user profile.",
-          );
-        }
-
-        setState({
-          user,
-          tenants,
-          selectedTenant,
-          roles: response.roles,
-          permissions: response.permissions,
-          loading: false,
-          authenticated: true,
-          sessionActive: true,
-        });
-      } catch (error) {
-        // Keep the login session so the user can retry or restore it.
-        setState((previous) => ({
-          ...previous,
-          loading: false,
-          authenticated: false,
-          roles: [],
-          permissions: [],
-          selectedTenant: null,
-        }));
-
-        throw error;
-      }
-    },
-    [],
-  );
+      throw error;
+    }
+  }, []);
 
   /**
    * Sign out and clear the local authentication state.

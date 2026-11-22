@@ -42,7 +42,10 @@ class RequirePermission
                 $auth->permissions,
                 true,
             );
-        } elseif ($internalAuth instanceof InternalAuthContext) {
+        } elseif (
+            $internalAuth instanceof InternalAuthContext
+            && $internalAuth->isAuthenticatedUser()
+        ) {
             $hasPermission = $internalAuth->hasPermission(
                 $permission,
             );

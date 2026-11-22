@@ -33,6 +33,9 @@ export class TenantService {
     @InjectRepository(TenantEntity)
     private readonly tenantRepository: Repository<TenantEntity>,
 
+    @InjectRepository(UserEntity)
+    private readonly userRepository: Repository<UserEntity>,
+
     private readonly tenantUserRepository: TenantUserRepository,
   ) {}
 
@@ -360,7 +363,7 @@ export class TenantService {
       });
     }
 
-    await this.assertActiveTenantMembership(requester, tenant.id);
+    await this.assertActiveTenantMembership(requester, tenant);
 
     return {
       success: true as const,
@@ -407,7 +410,7 @@ export class TenantService {
       });
     }
 
-    await this.assertActiveTenantMembership(requester, tenant.id);
+    await this.assertActiveTenantMembership(requester, tenant);
 
     if (dto.name !== undefined) {
       tenant.name = dto.name.trim();
@@ -453,7 +456,7 @@ export class TenantService {
 
     // GLOBAL scope can access memberships of any tenant.
     if (requester.scope !== InternalAuthScope.GLOBAL) {
-      await this.assertActiveTenantMembership(requester, tenantId);
+      await this.assertActiveTenantMembership(requester, tenant);
     }
 
     const memberships =
@@ -528,6 +531,76 @@ export class TenantService {
   }
 
   // ============================================================
+  // Tenant Context Validation
+  // ============================================================
+
+  /**
+   * Validate the current tenant context against live database state.
+   *
+   * A valid context requires:
+   * - An existing active user.
+   * - An existing active tenant.
+   * - An active membership between the user and tenant.
+   */
+  async validateTenantContext(userId: string, tenantId: string): Promise<void> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      select: {
+        id: true,
+        isActive: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException({
+        code: AUTH_ERROR_CODES.USER_NOT_FOUND,
+        message: 'User was not found.',
+      });
+    }
+
+    if (!user.isActive) {
+      throw new ForbiddenException({
+        code: AUTH_ERROR_CODES.USER_INACTIVE,
+        message: 'User is inactive.',
+      });
+    }
+
+    const tenant = await this.tenantRepository.findOne({
+      where: { id: tenantId },
+      select: {
+        id: true,
+        status: true,
+      },
+    });
+
+    if (!tenant) {
+      throw new NotFoundException({
+        code: AUTH_ERROR_CODES.TENANT_NOT_FOUND,
+        message: 'Tenant was not found.',
+      });
+    }
+
+    if (tenant.status !== TENANT_STATUS.ACTIVE) {
+      throw new ForbiddenException({
+        code: AUTH_ERROR_CODES.TENANT_INACTIVE,
+        message: 'Tenant is inactive.',
+      });
+    }
+
+    const membership = await this.tenantUserRepository.findActiveMembership(
+      tenantId,
+      userId,
+    );
+
+    if (!membership) {
+      throw new ForbiddenException({
+        code: AUTH_ERROR_CODES.TENANT_MEMBERSHIP_REQUIRED,
+        message: 'User does not have an active membership in this tenant.',
+      });
+    }
+  }
+
+  // ============================================================
   // Find Tenant By Slug
   // ============================================================
 
@@ -584,29 +657,33 @@ export class TenantService {
     }
   }
 
-  // ============================================================
-  // Active Membership Validation
-  // ============================================================
-
   /**
-   * Validate tenant scope and active membership.
+   * Validate tenant scope, active tenant status, and active membership.
    *
    * GLOBAL requests are allowed without a membership check.
    * Non-global requests must:
    *
    * - have a valid TENANT scope
    * - target the same tenant as the JWT context
+   * - target an active tenant
    * - have an active membership in that tenant
    */
   private async assertActiveTenantMembership(
     requester: InternalJwtPayload,
-    tenantId: string,
+    tenant: TenantEntity,
   ): Promise<void> {
-    this.assertTenantScope(requester, tenantId);
+    this.assertTenantScope(requester, tenant.id);
 
     // GLOBAL scope is already authorized.
     if (requester.scope === InternalAuthScope.GLOBAL) {
       return;
+    }
+
+    if (tenant.status !== TENANT_STATUS.ACTIVE) {
+      throw new ForbiddenException({
+        code: AUTH_ERROR_CODES.TENANT_INACTIVE,
+        message: 'This tenant is not active.',
+      });
     }
 
     if (!requester.userId) {
@@ -617,7 +694,7 @@ export class TenantService {
     }
 
     const membership = await this.tenantUserRepository.findActiveMembership(
-      tenantId,
+      tenant.id,
       requester.userId,
     );
 

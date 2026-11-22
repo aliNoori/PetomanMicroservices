@@ -1,4 +1,3 @@
-
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ROLE_SLUGS } from '../constants/roles.constants';
@@ -43,10 +42,7 @@ export class GatewayDownstreamAuthService {
           );
         }
 
-        if (
-          !Array.isArray(user.roles) ||
-          !Array.isArray(user.permissions)
-        ) {
+        if (!Array.isArray(user.roles) || !Array.isArray(user.permissions)) {
           throw new UnauthorizedException(
             'Authenticated user authorization context is required.',
           );
@@ -88,6 +84,17 @@ export class GatewayDownstreamAuthService {
         );
       }
     }
+  }
+
+  createTenantServiceAuthorizationHeader(
+    target: GatewayTarget,
+    tenantId: string,
+  ): string {
+    const options = this.getOptions(target);
+
+    const token = this.internalJwtService.signTenantToken(tenantId, options);
+
+    return `Bearer ${token}`;
   }
 
   private getOptions(target: GatewayTarget): InternalJwtOptions {

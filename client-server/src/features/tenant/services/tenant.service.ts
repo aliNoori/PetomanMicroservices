@@ -7,6 +7,8 @@ import type {
   ApproveTenantResponse,
   TenantReviewResult,
   RejectTenantRequest,
+  ApproveTenantMembershipResponse,
+  RejectTenantMembershipResponse,
 } from "../types/tenant.types";
 
 import type { ApiResponse } from "@/lib/api/api-response.types";
@@ -60,6 +62,28 @@ class TenantService {
     >(`/auth/tenants/${tenantId}/memberships`);
 
     return response.data.data;
+  }
+
+  /**
+   * Approve a pending tenant membership request.
+   */
+  async approveTenantMembership(
+    membershipId: string,
+  ): Promise<ApproveTenantMembershipResponse> {
+    return apiClient.post<ApproveTenantMembershipResponse>(
+      `/auth/tenant-memberships/${membershipId}/approve`,
+    );
+  }
+
+  /**
+   * Reject a pending tenant membership request.
+   */
+  async rejectTenantMembership(
+    membershipId: string,
+  ): Promise<RejectTenantMembershipResponse> {
+    return apiClient.post<RejectTenantMembershipResponse>(
+      `/auth/tenant-memberships/${membershipId}/reject`,
+    );
   }
 }
 

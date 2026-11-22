@@ -4,7 +4,7 @@ import { render, screen, within } from "@testing-library/react";
 
 import userEvent from "@testing-library/user-event";
 
-import { ManageTenants } from "./ManageTenants";
+import { PendingTenantsPage } from "./PendingTenantsPage";
 
 import { usePendingTenants } from "@/features/tenant";
 
@@ -48,18 +48,18 @@ function createPendingTenantsContext(
   };
 }
 
-function renderManageTenants() {
-  return render(<ManageTenants />);
+function renderPendingTenantsPage() {
+  return render(<PendingTenantsPage />);
 }
 
-describe("ManageTenants", () => {
+describe("PendingTenantsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(usePendingTenants).mockReturnValue(createPendingTenantsContext());
   });
 
   it("renders the page title and pending tenant count", () => {
-    renderManageTenants();
+    renderPendingTenantsPage();
 
     expect(
       screen.getByRole("heading", {
@@ -71,7 +71,7 @@ describe("ManageTenants", () => {
   });
 
   it("renders pending tenants", () => {
-    renderManageTenants();
+    renderPendingTenantsPage();
 
     expect(screen.getByText("Slug: alimarket")).toBeInTheDocument();
     expect(screen.getByText("Slug: alimarket")).toBeInTheDocument();
@@ -80,7 +80,7 @@ describe("ManageTenants", () => {
   it("opens the approval dialog", async () => {
     const user = userEvent.setup();
 
-    renderManageTenants();
+    renderPendingTenantsPage();
 
     await user.click(
       screen.getByRole("button", {
@@ -103,7 +103,7 @@ describe("ManageTenants", () => {
       createPendingTenantsContext({ approve }),
     );
 
-    renderManageTenants();
+    renderPendingTenantsPage();
 
     await user.click(
       screen.getByRole("button", {
@@ -126,7 +126,7 @@ describe("ManageTenants", () => {
   it("opens the rejection dialog", async () => {
     const user = userEvent.setup();
 
-    renderManageTenants();
+    renderPendingTenantsPage();
 
     await user.click(
       screen.getByRole("button", {
@@ -146,7 +146,7 @@ describe("ManageTenants", () => {
       createPendingTenantsContext({ reject }),
     );
 
-    renderManageTenants();
+    renderPendingTenantsPage();
 
     await user.click(
       screen.getByRole("button", {
@@ -183,10 +183,11 @@ describe("ManageTenants", () => {
       }),
     );
 
-    renderManageTenants();
+    renderPendingTenantsPage();
 
     expect(
       screen.getByText("Failed to load pending tenants."),
     ).toBeInTheDocument();
   });
 });
+

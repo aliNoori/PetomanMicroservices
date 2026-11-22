@@ -164,7 +164,9 @@ describe("RegisterPage", () => {
       ),
     );
 
-    vi.mocked(authService.resendVerificationEmail).mockResolvedValue(undefined);
+    vi.mocked(authService.resendVerificationEmail).mockResolvedValue({
+      message: "If the account requires verification, an email will be sent.",
+    });
 
     renderRegister();
 

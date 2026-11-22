@@ -6,24 +6,22 @@ export {
   AllTenantsSection,
 } from "./components";
 
-export type {
-  TenantHeroProps,
-} from "./components";
+export type { TenantHeroProps } from "./components";
 
 export type {
   TenantType,
   TenantSummary,
   TenantSectionProps,
-    TenantMembershipTenant,
+  TenantMembershipTenant,
   TenantMembershipUser,
   TenantMembershipRole,
   TenantMembership,
   TenantMembershipsResponse,
+  ApproveTenantMembershipResponse,
+  RejectTenantMembershipResponse,
 } from "./types";
 
-export {
-  isTenantType,
-} from "./utils";
+export { isTenantType } from "./utils";
 
 export type {
   TenantCardBaseProps,
@@ -40,6 +38,7 @@ export type {
   TenantReviewResult,
   RejectTenantRequest,
   ApproveTenantResponse,
+  TenantMembershipStatus,
 } from "./types";
 
 export { tenantService } from "./services";
@@ -51,7 +50,7 @@ export {
   TenantCardRenderer,
 } from "./components";
 
-export{marketTheme,vetTheme,pharmacyTheme,getTenantTheme} from "./theme"
+export { marketTheme, vetTheme, pharmacyTheme, getTenantTheme } from "./theme";
 
 export { usePendingTenants } from "./hooks";
 export { useTenantMemberships } from "./hooks";

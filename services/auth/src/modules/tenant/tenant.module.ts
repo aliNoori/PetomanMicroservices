@@ -10,6 +10,7 @@ import { TenantUserEntity } from '../auth/entities/tenant-user.entity';
 import { TenantUserRepository } from '../auth/repositories/tenant-user-repository';
 
 import { JwtConfigModule } from '../../common/security/jwt.config.module';
+import { UserEntity } from '../auth/entities/user.entity';
 import {
   INTERNAL_JWT_OPTIONS,
   InternalJwtGuard,
@@ -22,7 +23,7 @@ import { ConfigurationService } from '../../config/configuration.service';
   imports: [
     JwtConfigModule,
 
-    TypeOrmModule.forFeature([TenantEntity, TenantUserEntity]),
+    TypeOrmModule.forFeature([TenantEntity, TenantUserEntity, UserEntity]),
   ],
 
   controllers: [TenantController],

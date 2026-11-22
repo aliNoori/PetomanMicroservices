@@ -1,10 +1,9 @@
-import {
-  GatewayRouteFactory,
-} from '../../registry/gateway-route.factory';
+import { GatewayRouteFactory } from '../../registry/gateway-route.factory';
 
 import {
   GatewayAuthMode,
   GatewayTarget,
+  GatewayTenantContext,
 } from '../../gateway-route.types';
 
 import { PERMISSION_SLUGS } from '../../../../../common/constants/permissions.constants';
@@ -19,12 +18,14 @@ import { PERMISSION_SLUGS } from '../../../../../common/constants/permissions.co
  *   through the Internal JWT.
  * - The Market service must enforce ownership of the requested order.
  */
-export const marketUserOrderByIdRoute =
-  GatewayRouteFactory.proxy(
-    'GET',
-    '/users/:userId/orders/:orderId',
-    GatewayTarget.MARKET,
-    '/api/users/:userId/orders/:orderId',
-    GatewayAuthMode.JWT,
-    [PERMISSION_SLUGS.ORDER_READ],
-  );
+export const marketUserOrderByIdRoute = GatewayRouteFactory.proxy(
+  'GET',
+  '/users/:userId/orders/:orderId',
+  GatewayTarget.MARKET,
+  '/api/users/:userId/orders/:orderId',
+  GatewayAuthMode.JWT,
+  [PERMISSION_SLUGS.ORDER_READ],
+  'json',
+  true,
+  GatewayTenantContext.REQUIRED,
+);

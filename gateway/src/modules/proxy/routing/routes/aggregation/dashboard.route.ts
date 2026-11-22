@@ -1,4 +1,7 @@
-import { GatewayAuthMode } from '../../gateway-route.types';
+import {
+  GatewayAuthMode,
+  GatewayTenantContext,
+} from '../../gateway-route.types';
 
 import { GatewayRouteFactory } from '../../registry/gateway-route.factory';
 
@@ -14,10 +17,11 @@ import { GatewayRouteFactory } from '../../registry/gateway-route.factory';
  * - Downstream services must enforce tenant isolation
  *   using the propagated Internal JWT context.
  */
-export const aggregationDashboardRoute =
-  GatewayRouteFactory.aggregation(
-    'GET',
-    '/dashboard',
-    'DASHBOARD',
-    GatewayAuthMode.JWT,
-  );
+export const aggregationDashboardRoute = GatewayRouteFactory.aggregation(
+  'GET',
+  '/dashboard',
+  'DASHBOARD',
+  GatewayAuthMode.JWT,
+  [],
+  GatewayTenantContext.REQUIRED,
+);

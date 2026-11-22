@@ -46,6 +46,22 @@ const mockResponse: TenantMembershipsResponse = {
   ],
 };
 
+const pendingMembership = {
+  ...mockResponse.memberships[0],
+  membershipId: "membership-2",
+  userId: "user-2",
+  status: "PENDING" as const,
+  user: {
+    id: "user-2",
+    email: "pending@example.com",
+    firstName: "Pending",
+    lastName: "User",
+    avatarKey: null,
+    isActive: true,
+  },
+  roles: [],
+};
+
 function createHookResult(
   overrides: Partial<ReturnType<typeof useTenantMemberships>> = {},
 ) {
@@ -54,7 +70,11 @@ function createHookResult(
     memberships: mockResponse.memberships,
     loading: false,
     error: null,
+    actionError: null,
+    processingMembershipId: null,
     refresh: vi.fn().mockResolvedValue(undefined),
+    approveMembership: vi.fn().mockResolvedValue(undefined),
+    rejectMembership: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 }
@@ -169,5 +189,97 @@ describe("MembersPage", () => {
     await waitFor(() => {
       expect(refresh).toHaveBeenCalledTimes(1);
     });
+  });
+  it("should display approve and reject actions only for pending memberships", () => {
+    vi.mocked(useTenantMemberships).mockReturnValue(
+      createHookResult({
+        memberships: [...mockResponse.memberships, pendingMembership],
+      }),
+    );
+
+    renderMembers();
+
+    expect(screen.getByRole("button", { name: "Approve" })).toBeInTheDocument();
+
+    expect(screen.getByRole("button", { name: "Reject" })).toBeInTheDocument();
+
+    expect(screen.getByText("Ali Noori")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Approve" }),
+    ).toBeInTheDocument();
+  });
+
+  it("should approve a pending membership", async () => {
+    const user = userEvent.setup();
+    const approveMembership = vi.fn().mockResolvedValue(undefined);
+
+    vi.mocked(useTenantMemberships).mockReturnValue(
+      createHookResult({
+        memberships: [...mockResponse.memberships, pendingMembership],
+        approveMembership,
+      }),
+    );
+
+    renderMembers();
+
+    await user.click(screen.getByRole("button", { name: "Approve" }));
+
+    expect(approveMembership).toHaveBeenCalledWith("membership-2");
+  });
+
+  it("should reject a pending membership", async () => {
+    const user = userEvent.setup();
+    const rejectMembership = vi.fn().mockResolvedValue(undefined);
+
+    vi.mocked(useTenantMemberships).mockReturnValue(
+      createHookResult({
+        memberships: [...mockResponse.memberships, pendingMembership],
+        rejectMembership,
+      }),
+    );
+
+    renderMembers();
+
+    await user.click(screen.getByRole("button", { name: "Reject" }));
+
+    expect(rejectMembership).toHaveBeenCalledWith("membership-2");
+  });
+
+  it("should display action errors without hiding the members table", () => {
+    vi.mocked(useTenantMemberships).mockReturnValue(
+      createHookResult({
+        memberships: [...mockResponse.memberships, pendingMembership],
+        actionError: "Failed to approve membership request.",
+      }),
+    );
+
+    renderMembers();
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Failed to approve membership request.",
+    );
+
+    expect(
+      screen.getByRole("region", { name: "Workspace members" }),
+    ).toBeInTheDocument();
+
+    expect(screen.getByText("Ali Noori")).toBeInTheDocument();
+  });
+
+  it("should disable membership actions while a request is processing", () => {
+    vi.mocked(useTenantMemberships).mockReturnValue(
+      createHookResult({
+        memberships: [...mockResponse.memberships, pendingMembership],
+        processingMembershipId: "membership-2",
+      }),
+    );
+
+    renderMembers();
+
+    expect(
+      screen.getByRole("button", { name: "Processing..." }),
+    ).toBeDisabled();
+
+    expect(screen.getByRole("button", { name: "Reject" })).toBeDisabled();
   });
 });

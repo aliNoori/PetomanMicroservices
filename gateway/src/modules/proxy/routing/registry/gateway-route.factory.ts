@@ -1,8 +1,11 @@
+
 import {
   GatewayAuthMode,
   GatewayRoute,
   GatewayRouteType,
   GatewayTarget,
+  GatewayTenantContext,
+  GatewayTenantResolution,
 } from '../gateway-route.types';
 
 export class GatewayRouteFactory {
@@ -16,7 +19,6 @@ export class GatewayRouteFactory {
    *
    * `permissions` defines Gateway-level authorization.
    */
-
   static proxy(
     method: string,
     path: string,
@@ -26,6 +28,8 @@ export class GatewayRouteFactory {
     permissions: readonly string[] = [],
     responseType: 'json' | 'binary' = 'json',
     applyServicePrefix: boolean = true,
+    tenantContext: GatewayTenantContext = GatewayTenantContext.NONE,
+    tenantResolution: GatewayTenantResolution = GatewayTenantResolution.NONE,
   ): GatewayRoute {
     return {
       method: method.toUpperCase(),
@@ -37,6 +41,8 @@ export class GatewayRouteFactory {
       permissions,
       responseType,
       applyServicePrefix,
+      tenantContext,
+      tenantResolution,
     };
   }
 
@@ -51,6 +57,7 @@ export class GatewayRouteFactory {
     handler: string,
     auth: GatewayAuthMode = GatewayAuthMode.JWT,
     permissions: readonly string[] = [],
+    tenantContext: GatewayTenantContext = GatewayTenantContext.NONE,
   ): GatewayRoute {
     return {
       method: method.toUpperCase(),
@@ -59,6 +66,7 @@ export class GatewayRouteFactory {
       handler,
       auth,
       permissions,
+      tenantContext,
     };
   }
 }

@@ -9,3 +9,7 @@ export {
 export type {
   UseSessionsResult,
 } from "./useSessions";
+
+export {
+  usePermissions,
+} from "./usePermissions";

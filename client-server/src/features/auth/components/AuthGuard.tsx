@@ -1,3 +1,4 @@
+
 import type { ReactNode } from "react";
 
 import {
@@ -15,11 +16,7 @@ interface AuthGuardProps {
 }
 
 export function AuthGuard({ children }: AuthGuardProps) {
-  const {
-    authenticated,
-    sessionActive,
-    loading,
-  } = useAuth();
+  const { sessionActive, loading } = useAuth();
 
   const location = useLocation();
 
@@ -33,25 +30,6 @@ export function AuthGuard({ children }: AuthGuardProps) {
         to="/login"
         replace
         state={{ from: location }}
-      />
-    );
-  }
-
-  const canAccessWithoutTenant =
-  location.pathname === "/tenants/create";
-
-if (!authenticated && !canAccessWithoutTenant) {
-    return (
-      <Navigate
-        to="/auth/select-tenant"
-        replace
-        state={{
-          returnTo: {
-            pathname: location.pathname,
-            search: location.search,
-            hash: location.hash,
-          },
-        }}
       />
     );
   }

@@ -1,5 +1,6 @@
 export type {
   AuthUser,
+  AuthTenantMembership,
   AuthSession,
   LoginRequest,
   LoginResponse,
@@ -7,7 +8,6 @@ export type {
   RefreshTokenResponse,
   ChangePasswordRequest,
   TenantOption,
-  AuthState,
   VerifyEmailRequest,
   ResendVerificationEmailRequest,
 } from "./auth.types";

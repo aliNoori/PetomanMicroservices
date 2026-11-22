@@ -1,4 +1,3 @@
-
 import {
   Navigate,
   Outlet,
@@ -9,9 +8,13 @@ import { useAuth } from "@/features/auth";
 
 export function WorkspaceTenantGuard() {
   const { tenantId } = useParams<{ tenantId: string }>();
-  const { selectedTenant } = useAuth();
 
-  if (!selectedTenant) {
+  const {
+    authenticated,
+    selectedTenant,
+  } = useAuth();
+
+  if (!authenticated || !selectedTenant) {
     return <Navigate to="/auth/select-tenant" replace />;
   }
 

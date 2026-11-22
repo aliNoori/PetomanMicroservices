@@ -24,6 +24,7 @@ import {
 
 import { TenantService } from './tenant.service';
 import { CreateTenantDto } from './dtos/create-tenant.dto';
+import { ValidateTenantContextDto } from './dtos/validate-tenant-context.dto';
 
 import { PERMISSION_SLUGS } from '../../common/constants/permissions.constants';
 import { UpdateTenantDto } from './dtos/update-tenant.dto';
@@ -47,6 +48,37 @@ export class TenantController {
     }
 
     return this.tenantService.createTenant(userId, dto);
+  }
+
+  @UseGuards(InternalJwtGuard)
+  @Post('validate-context')
+  async validateTenantContext(
+    @Body() dto: ValidateTenantContextDto,
+    @Req() request: InternalAuthenticatedRequest,
+  ) {
+    const auth = request.internalAuth;
+
+    if (
+      auth?.scope !== InternalAuthScope.GLOBAL ||
+      auth.userId !== undefined ||
+      auth.tenantId !== undefined ||
+      auth.sid !== undefined ||
+      auth.roles !== undefined ||
+      auth.permissions !== undefined
+    ) {
+      throw new ForbiddenException({
+        message: 'A global service token is required.',
+      });
+    }
+
+    await this.tenantService.validateTenantContext(dto.userId, dto.tenantId);
+
+    return {
+      success: true,
+      data: {
+        valid: true,
+      },
+    };
   }
 
   @UseGuards(InternalJwtGuard)
@@ -127,11 +159,29 @@ export class TenantController {
 
   @UseGuards(InternalJwtGuard)
   @Get('/by-slug/:storeSlug')
-  async findBySlug(@Param('storeSlug') storeSlug: string) {
+  async findBySlug(
+    @Param('storeSlug') storeSlug: string,
+    @Req() request: InternalAuthenticatedRequest,
+  ) {
+    const auth = request.internalAuth;
+
+    if (
+      auth?.scope !== InternalAuthScope.GLOBAL ||
+      auth.userId !== undefined ||
+      auth.tenantId !== undefined ||
+      auth.sid !== undefined ||
+      auth.roles !== undefined ||
+      auth.permissions !== undefined
+    ) {
+      throw new ForbiddenException({
+        message: 'A global service token is required.',
+      });
+    }
+
     const tenant = await this.tenantService.findBySlug(storeSlug);
 
-    if (!tenant) {
-      throw new NotFoundException('Tenant not found.');
+    if (!tenant || tenant.status !== 'ACTIVE') {
+      throw new NotFoundException('Active tenant not found.');
     }
 
     return {

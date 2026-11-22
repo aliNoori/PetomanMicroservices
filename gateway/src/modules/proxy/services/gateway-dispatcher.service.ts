@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ForbiddenException, BadRequestException, NotFoundException } from '@nestjs/common';
 
 import type { AuthenticatedRequest } from '@petoman/security';
 
@@ -14,14 +14,19 @@ import { GatewayDownstreamAuthService } from '../../../common/authentication/gat
 
 import { GatewayAuthorizationService } from '../../../common/authorization/gateway-authorization.service';
 
+import { TenantContextValidatorService } from './tenant-context-validator.service';
+
 import {
   GatewayRouteType,
   GatewayRouteMatch,
   GatewayProxyRoute,
   GatewayAggregationRoute,
   GatewayAuthMode,
+  GatewayTenantContext,
+  GatewayTenantResolution,
 } from '../routing/gateway-route.types';
 import { GatewayAuthGuard } from '../../../common/guards/gateway-auth.guard';
+import { TenantResolverService } from './tenant-resolver.service';
 
 /**
  * Central request dispatcher for the API Gateway.
@@ -49,6 +54,10 @@ export class GatewayDispatcherService {
   constructor(
     private readonly routeResolver: RouteResolverService,
 
+    private readonly tenantResolver: TenantResolverService,
+
+    private readonly tenantContextValidator: TenantContextValidatorService,
+
     private readonly proxyService: ProxyService,
 
     private readonly aggregationService: AggregationService,
@@ -72,6 +81,34 @@ export class GatewayDispatcherService {
       await this.gatewayAuthGuard.authenticate(request);
 
       this.gatewayAuthorizationService.authorize(request, routeMatch.route);
+
+      const tenantContext =
+        routeMatch.route.tenantContext ?? GatewayTenantContext.NONE;
+
+      if (tenantContext === GatewayTenantContext.REQUIRED) {
+        if (!request.user?.sub || !request.user.tenantId) {
+          throw new ForbiddenException('An active tenant context is required.');
+        }
+
+        await this.tenantContextValidator.validate(
+          request.user.sub,
+          request.user.tenantId,
+        );
+      }
+
+      if (
+        tenantContext === GatewayTenantContext.OPTIONAL &&
+        request.user?.tenantId
+      ) {
+        if (!request.user.sub) {
+          throw new ForbiddenException('A valid user context is required.');
+        }
+
+        await this.tenantContextValidator.validate(
+          request.user.sub,
+          request.user.tenantId,
+        );
+      }
     }
 
     switch (routeMatch.route.type) {
@@ -99,12 +136,37 @@ export class GatewayDispatcherService {
   ): Promise<unknown> {
     const downstreamPath = this.routeResolver.getDownstreamPath(routeMatch);
 
-    const authorization =
-      this.gatewayDownstreamAuthService.createAuthorizationHeader(
-        route.target,
-        route.auth,
-        request,
-      );
+    let authorization: string;
+
+    const tenantResolution =
+      route.tenantResolution ?? GatewayTenantResolution.NONE;
+
+    if (tenantResolution === GatewayTenantResolution.STORE_SLUG) {
+      const storeSlug = routeMatch.params.storeSlug;
+
+      if (typeof storeSlug !== 'string' || !storeSlug.trim()) {
+        throw new BadRequestException('A valid store slug is required.');
+      }
+
+      const tenant = await this.tenantResolver.resolveBySlug(storeSlug);
+
+      if (tenant.status !== 'ACTIVE') {
+        throw new NotFoundException('Active store not found.');
+      }
+
+      authorization =
+        this.gatewayDownstreamAuthService.createTenantServiceAuthorizationHeader(
+          route.target,
+          tenant.tenantId,
+        );
+    } else {
+      authorization =
+        this.gatewayDownstreamAuthService.createAuthorizationHeader(
+          route.target,
+          route.auth,
+          request,
+        );
+    }
 
     const headers = this.proxyHeaderService.getForwardHeaders(
       request,

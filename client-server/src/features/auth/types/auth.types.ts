@@ -1,10 +1,35 @@
-import type { TenantType } from "@/features/tenant/types";
+import type {
+  TenantMembershipStatus,
+  TenantStatus,
+  TenantType,
+} from "@/features/tenant/types";
+
+export interface AuthTenantSummary {
+  id: string;
+  name: string;
+  slug: string;
+  type: TenantType;
+  status: TenantStatus;
+  ownerId: string;
+}
+
+export interface AuthTenantMembership {
+  membershipId: string;
+  tenantId: string;
+  status: TenantMembershipStatus;
+  tenant: AuthTenantSummary;
+}
+
+export interface AuthTenantRole {
+  tenantId: string;
+  role: string;
+}
 
 export interface AuthUser {
   id: string;
   email: string;
-  firstName: string;
-  lastName: string;
+  firstName: string | null;
+  lastName: string | null;
   isActive: boolean;
 
   isEmailVerified: boolean;
@@ -13,10 +38,14 @@ export interface AuthUser {
   avatarUrl: string | null;
 
   systemRoles: string[];
-  tenantMemberships: unknown[];
-  tenantRoles: unknown[];
+  tenantMemberships: AuthTenantMembership[];
+  tenantRoles: AuthTenantRole[];
 
   createdAt: string;
+}
+
+export interface AuthProfileResponse extends Omit<AuthUser, "isEmailVerified"> {
+  emailVerified: boolean;
 }
 
 export interface LoginRequest {
@@ -65,13 +94,6 @@ export interface ChangePasswordRequest {
   confirm_password: string;
 }
 
-export interface AuthState {
-  user: AuthUser | null;
-  access_token: string | null;
-  refresh_token: string | null;
-  isAuthenticated: boolean;
-}
-
 export type SessionStatus = "active" | "revoked" | "expired";
 
 export interface AuthSession {
@@ -112,5 +134,5 @@ export interface RegisterUserResponse {
   isActive: boolean;
   isEmailVerified: boolean;
   avatarUrl: string | null;
-  tenantMemberships: unknown[];
+  tenantMemberships: AuthTenantMembership[];
 }

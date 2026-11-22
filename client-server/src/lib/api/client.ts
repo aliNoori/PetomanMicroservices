@@ -2,7 +2,10 @@ import axios, { type AxiosError, type AxiosRequestConfig } from "axios";
 
 import type { ApiResponse } from "./api-response.types";
 import { tokenStorage } from "@/lib/storage";
-import type { RefreshTokenResponse } from "@/features/auth/types";
+
+import { refreshSession } from "./refresh-manager";
+
+export { refreshAxiosInstance } from "./refresh-manager";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000/api/";
 
@@ -13,68 +16,7 @@ const axiosInstance = axios.create({
   },
 });
 
-// A separate instance prevents refresh requests from entering
-// the normal authentication interceptors.
-export const refreshAxiosInstance = axios.create({
-  baseURL: API_URL,
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
-
-/**
- * Prevents concurrent requests from triggering
- * multiple refresh operations.
- */
-let refreshPromise: Promise<string | null> | null = null;
-
 let sessionExpirationRedirecting = false;
-
-/**
- * Refresh the current access token.
- *
- * The backend rotates refresh tokens.
- * Both returned tokens must be stored.
- */
-async function refreshAccessToken(): Promise<string | null> {
-  const refreshToken = tokenStorage.getRefreshToken();
-
-  if (!refreshToken) {
-    return null;
-  }
-
-  try {
-    const response = await refreshAxiosInstance.post<
-      ApiResponse<RefreshTokenResponse>
-    >("/auth/refresh", {
-      refresh_token: refreshToken,
-    });
-
-    const data = response.data.data;
-
-    tokenStorage.setAccessToken(data.accessToken);
-    tokenStorage.setRefreshToken(data.refreshToken);
-
-    return data.accessToken;
-  } catch {
-    tokenStorage.clear();
-    return null;
-  }
-}
-
-/**
- * Reuse an ongoing refresh operation instead of
- * creating multiple concurrent refresh requests.
- */
-function getRefreshPromise(): Promise<string | null> {
-  if (!refreshPromise) {
-    refreshPromise = refreshAccessToken().finally(() => {
-      refreshPromise = null;
-    });
-  }
-
-  return refreshPromise;
-}
 
 /**
  * Attach the current access token to authenticated requests.
@@ -126,14 +68,15 @@ axiosInstance.interceptors.response.use(
 
     originalRequest._retry = true;
 
-    const newAccessToken = await getRefreshPromise();
+    const refreshResult = await refreshSession();
 
-    if (!newAccessToken) {
-      tokenStorage.clear();
+    if (!refreshResult) {
       redirectToLoginAfterSessionExpiration();
 
       return Promise.reject(error);
     }
+
+    const newAccessToken = refreshResult.accessToken;
 
     originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
 

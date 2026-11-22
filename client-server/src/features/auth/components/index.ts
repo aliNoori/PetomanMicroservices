@@ -15,3 +15,11 @@ export type {
 export { SystemRoleGuard } from "./SystemRoleGuard";
 
 export { WorkspaceTenantGuard } from "./WorkspaceTenantGuard";
+
+export {
+  PermissionGuard,
+} from "./PermissionGuard";
+
+export type {
+  PermissionGuardProps,
+} from "./PermissionGuard";

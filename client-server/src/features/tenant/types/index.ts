@@ -17,6 +17,9 @@ export type {
   TenantMembershipRole,
   TenantMembership,
   TenantMembershipsResponse,
+  TenantMembershipStatus,
+    ApproveTenantMembershipResponse,
+  RejectTenantMembershipResponse,
 } from "./tenant.types";
 
 export type {TenantListItem} from "./TenantListItem.types"

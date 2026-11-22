@@ -91,9 +91,21 @@ export class TenantResolverService {
       throw new ServiceUnavailableException('Unable to resolve tenant.');
     }
 
-    const data = (await response.json()) as AuthTenantResponse;
+    let data: AuthTenantResponse;
 
-    if (typeof data.id !== 'string' || typeof data.status !== 'string') {
+    try {
+      data = (await response.json()) as AuthTenantResponse;
+    } catch {
+      throw new ServiceUnavailableException(
+        'Invalid tenant response from Auth service.',
+      );
+    }
+
+    if (
+      typeof data.id !== 'string' ||
+      data.id.trim().length === 0 ||
+      data.status !== 'ACTIVE'
+    ) {
       throw new ServiceUnavailableException(
         'Invalid tenant response from Auth service.',
       );

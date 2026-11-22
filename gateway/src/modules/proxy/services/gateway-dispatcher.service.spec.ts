@@ -6,8 +6,12 @@ import {
   GatewayAuthMode,
   GatewayRouteType,
   GatewayTarget,
+  GatewayTenantContext,
+  GatewayTenantResolution,
   type GatewayProxyRoute,
 } from '../routing/gateway-route.types';
+
+import { TenantResolverService } from './tenant-resolver.service';
 
 import { GatewayDispatcherService } from './gateway-dispatcher.service';
 import { AggregationService } from './aggregation.service';
@@ -17,6 +21,7 @@ import { RouteResolverService } from './route-resolver.service';
 import { GatewayAuthGuard } from '../../../common/guards/gateway-auth.guard';
 import { GatewayAuthorizationService } from '../../../common/authorization/gateway-authorization.service';
 import { GatewayDownstreamAuthService } from '../../../common/authentication/gateway-downstream-auth.service';
+import { TenantContextValidatorService } from './tenant-context-validator.service';
 
 describe('GatewayDispatcherService', () => {
   let service: GatewayDispatcherService;
@@ -25,6 +30,14 @@ describe('GatewayDispatcherService', () => {
     resolve: jest.fn(),
     getDownstreamPath: jest.fn(),
   } as unknown as jest.Mocked<RouteResolverService>;
+
+  const tenantContextValidator = {
+    validate: jest.fn().mockResolvedValue(undefined),
+  } as unknown as jest.Mocked<TenantContextValidatorService>;
+
+  const tenantResolver = {
+    resolveBySlug: jest.fn(),
+  } as unknown as jest.Mocked<TenantResolverService>;
 
   const proxyService = {
     forward: jest.fn(),
@@ -48,6 +61,7 @@ describe('GatewayDispatcherService', () => {
 
   const gatewayDownstreamAuthService = {
     createAuthorizationHeader: jest.fn(),
+    createTenantServiceAuthorizationHeader: jest.fn(),
   } as unknown as jest.Mocked<GatewayDownstreamAuthService>;
 
   const request = {
@@ -80,6 +94,17 @@ describe('GatewayDispatcherService', () => {
   beforeEach(() => {
     jest.resetAllMocks();
 
+    tenantContextValidator.validate.mockResolvedValue(undefined);
+
+    tenantResolver.resolveBySlug.mockResolvedValue({
+      tenantId: 'tenant-001',
+      status: 'ACTIVE',
+    });
+
+    gatewayDownstreamAuthService.createTenantServiceAuthorizationHeader.mockReturnValue(
+      'Bearer tenant-internal-jwt-token',
+    );
+
     routeResolver.resolve.mockReturnValue({
       route: proxyRoute,
       params: {},
@@ -103,6 +128,8 @@ describe('GatewayDispatcherService', () => {
 
     service = new GatewayDispatcherService(
       routeResolver,
+      tenantResolver,
+      tenantContextValidator,
       proxyService,
       aggregationService,
       proxyHeaderService,
@@ -262,6 +289,229 @@ describe('GatewayDispatcherService', () => {
 
     expect(
       gatewayDownstreamAuthService.createAuthorizationHeader,
+    ).not.toHaveBeenCalled();
+
+    expect(proxyHeaderService.getForwardHeaders).not.toHaveBeenCalled();
+
+    expect(proxyService.forward).not.toHaveBeenCalled();
+  });
+
+  it('should validate the active tenant context before forwarding a REQUIRED route', async () => {
+    const requiredTenantRoute: GatewayProxyRoute = {
+      ...proxyRoute,
+      tenantContext: GatewayTenantContext.REQUIRED,
+    };
+
+    routeResolver.resolve.mockReturnValue({
+      route: requiredTenantRoute,
+      params: {},
+    });
+
+    await service.dispatch(request);
+
+    expect(tenantContextValidator.validate).toHaveBeenCalledTimes(1);
+
+    expect(tenantContextValidator.validate).toHaveBeenCalledWith(
+      'user-001',
+      'tenant-001',
+    );
+
+    expect(proxyService.forward).toHaveBeenCalledTimes(1);
+  });
+
+  it('should reject a REQUIRED route when tenant context is missing', async () => {
+    const requiredTenantRoute: GatewayProxyRoute = {
+      ...proxyRoute,
+      tenantContext: GatewayTenantContext.REQUIRED,
+    };
+
+    const requestWithoutTenant = {
+      ...request,
+      user: {
+        ...request.user,
+        tenantId: undefined,
+      },
+    } as unknown as AuthenticatedRequest;
+
+    routeResolver.resolve.mockReturnValue({
+      route: requiredTenantRoute,
+      params: {},
+    });
+
+    await expect(service.dispatch(requestWithoutTenant)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+
+    expect(tenantContextValidator.validate).not.toHaveBeenCalled();
+    expect(proxyService.forward).not.toHaveBeenCalled();
+    expect(aggregationService.execute).not.toHaveBeenCalled();
+  });
+
+  it('should validate tenant context for an OPTIONAL route when tenant exists', async () => {
+    const optionalTenantRoute: GatewayProxyRoute = {
+      ...proxyRoute,
+      tenantContext: GatewayTenantContext.OPTIONAL,
+    };
+
+    routeResolver.resolve.mockReturnValue({
+      route: optionalTenantRoute,
+      params: {},
+    });
+
+    await service.dispatch(request);
+
+    expect(tenantContextValidator.validate).toHaveBeenCalledTimes(1);
+
+    expect(tenantContextValidator.validate).toHaveBeenCalledWith(
+      'user-001',
+      'tenant-001',
+    );
+
+    expect(proxyService.forward).toHaveBeenCalledTimes(1);
+  });
+
+  it('should skip tenant validation for an OPTIONAL route when tenant is missing', async () => {
+    const optionalTenantRoute: GatewayProxyRoute = {
+      ...proxyRoute,
+      tenantContext: GatewayTenantContext.OPTIONAL,
+    };
+
+    const requestWithoutTenant = {
+      ...request,
+      user: {
+        ...request.user,
+        tenantId: undefined,
+      },
+    } as unknown as AuthenticatedRequest;
+
+    routeResolver.resolve.mockReturnValue({
+      route: optionalTenantRoute,
+      params: {},
+    });
+
+    await service.dispatch(requestWithoutTenant);
+
+    expect(tenantContextValidator.validate).not.toHaveBeenCalled();
+    expect(proxyService.forward).toHaveBeenCalledTimes(1);
+  });
+
+  it('should skip tenant validation for a NONE route', async () => {
+    const noTenantRoute: GatewayProxyRoute = {
+      ...proxyRoute,
+      tenantContext: GatewayTenantContext.NONE,
+    };
+
+    routeResolver.resolve.mockReturnValue({
+      route: noTenantRoute,
+      params: {},
+    });
+
+    await service.dispatch(request);
+
+    expect(tenantContextValidator.validate).not.toHaveBeenCalled();
+    expect(proxyService.forward).toHaveBeenCalledTimes(1);
+  });
+  it('should skip user authentication and tenant validation for a PUBLIC route', async () => {
+    const publicRoute: GatewayProxyRoute = {
+      ...proxyRoute,
+      auth: GatewayAuthMode.PUBLIC,
+      permissions: [],
+      tenantContext: GatewayTenantContext.REQUIRED,
+    };
+
+    routeResolver.resolve.mockReturnValue({
+      route: publicRoute,
+      params: {},
+    });
+
+    await service.dispatch(request);
+
+    expect(gatewayAuthGuard.authenticate).not.toHaveBeenCalled();
+
+    expect(gatewayAuthorizationService.authorize).not.toHaveBeenCalled();
+
+    expect(tenantContextValidator.validate).not.toHaveBeenCalled();
+
+    expect(proxyService.forward).toHaveBeenCalledTimes(1);
+  });
+
+  it('should resolve an active store and create a tenant-scoped token for a STORE_SLUG route', async () => {
+    const publicStoreRoute: GatewayProxyRoute = {
+      ...proxyRoute,
+      path: '/public/stores/:storeSlug/products',
+      downstreamPath: '/api/public/stores/:storeSlug/products',
+      auth: GatewayAuthMode.PUBLIC,
+      permissions: [],
+      tenantContext: GatewayTenantContext.NONE,
+      tenantResolution: GatewayTenantResolution.STORE_SLUG,
+    };
+
+    routeResolver.resolve.mockReturnValue({
+      route: publicStoreRoute,
+      params: {
+        storeSlug: 'petoman-store',
+      },
+    });
+
+    routeResolver.getDownstreamPath.mockReturnValue(
+      '/api/public/stores/petoman-store/products',
+    );
+
+    await service.dispatch(request);
+
+    expect(tenantResolver.resolveBySlug).toHaveBeenCalledTimes(1);
+    expect(tenantResolver.resolveBySlug).toHaveBeenCalledWith('petoman-store');
+
+    expect(
+      gatewayDownstreamAuthService.createTenantServiceAuthorizationHeader,
+    ).toHaveBeenCalledTimes(1);
+
+    expect(
+      gatewayDownstreamAuthService.createTenantServiceAuthorizationHeader,
+    ).toHaveBeenCalledWith(GatewayTarget.MARKET, 'tenant-001');
+
+    expect(
+      gatewayDownstreamAuthService.createAuthorizationHeader,
+    ).not.toHaveBeenCalled();
+
+    expect(proxyHeaderService.getForwardHeaders).toHaveBeenCalledWith(
+      request,
+      'Bearer tenant-internal-jwt-token',
+    );
+
+    expect(proxyService.forward).toHaveBeenCalledTimes(1);
+  });
+
+  it('should not forward the request when store resolution fails', async () => {
+    const publicStoreRoute: GatewayProxyRoute = {
+      ...proxyRoute,
+      path: '/public/stores/:storeSlug/products',
+      downstreamPath: '/api/public/stores/:storeSlug/products',
+      auth: GatewayAuthMode.PUBLIC,
+      permissions: [],
+      tenantContext: GatewayTenantContext.NONE,
+      tenantResolution: GatewayTenantResolution.STORE_SLUG,
+    };
+
+    routeResolver.resolve.mockReturnValue({
+      route: publicStoreRoute,
+      params: {
+        storeSlug: 'unknown-store',
+      },
+    });
+
+    tenantResolver.resolveBySlug.mockRejectedValue(
+      new ForbiddenException('Store resolution failed.'),
+    );
+
+    await expect(service.dispatch(request)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+
+    expect(tenantResolver.resolveBySlug).toHaveBeenCalledWith('unknown-store');
+
+    expect(
+      gatewayDownstreamAuthService.createTenantServiceAuthorizationHeader,
     ).not.toHaveBeenCalled();
 
     expect(proxyHeaderService.getForwardHeaders).not.toHaveBeenCalled();

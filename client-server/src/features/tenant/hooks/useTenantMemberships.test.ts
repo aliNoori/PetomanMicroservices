@@ -10,6 +10,8 @@ import type { TenantMembershipsResponse } from "../types";
 vi.mock("../services", () => ({
   tenantService: {
     getTenantMemberships: vi.fn(),
+    approveTenantMembership: vi.fn(),
+    rejectTenantMembership: vi.fn(),
   },
 }));
 
@@ -63,9 +65,7 @@ describe("useTenantMemberships", () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(tenantService.getTenantMemberships).toHaveBeenCalledWith(
-      "tenant-1",
-    );
+    expect(tenantService.getTenantMemberships).toHaveBeenCalledWith("tenant-1");
     expect(result.current.tenant).toEqual(mockResponse.tenant);
     expect(result.current.memberships).toEqual(mockResponse.memberships);
     expect(result.current.error).toBeNull();
@@ -84,9 +84,7 @@ describe("useTenantMemberships", () => {
 
     expect(result.current.tenant).toBeNull();
     expect(result.current.memberships).toEqual([]);
-    expect(result.current.error).toBe(
-      "Failed to load tenant memberships.",
-    );
+    expect(result.current.error).toBe("Failed to load tenant memberships.");
   });
 
   it("should refresh tenant memberships", async () => {
@@ -106,6 +104,93 @@ describe("useTenantMemberships", () => {
 
     expect(tenantService.getTenantMemberships).toHaveBeenCalledTimes(2);
     expect(result.current.memberships).toEqual(mockResponse.memberships);
+  });
+  it("should approve a membership and refresh the memberships list", async () => {
+    vi.mocked(tenantService.getTenantMemberships).mockResolvedValue(
+      mockResponse,
+    );
+    vi.mocked(tenantService.approveTenantMembership).mockResolvedValue({
+      membershipId: "membership-1",
+      tenantId: "tenant-1",
+      userId: "user-1",
+      status: "ACTIVE",
+      role: {
+        id: "role-1",
+        slug: "staff",
+      },
+    });
+
+    const { result } = renderHook(() => useTenantMemberships("tenant-1"));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.approveMembership("membership-1");
+    });
+
+    expect(tenantService.approveTenantMembership).toHaveBeenCalledWith(
+      "membership-1",
+    );
+    expect(tenantService.getTenantMemberships).toHaveBeenCalledTimes(2);
+    expect(result.current.actionError).toBeNull();
+    expect(result.current.processingMembershipId).toBeNull();
+  });
+
+  it("should reject a membership and refresh the memberships list", async () => {
+    vi.mocked(tenantService.getTenantMemberships).mockResolvedValue(
+      mockResponse,
+    );
+    vi.mocked(tenantService.rejectTenantMembership).mockResolvedValue({
+      membershipId: "membership-1",
+      tenantId: "tenant-1",
+      userId: "user-1",
+      status: "REJECTED",
+    });
+
+    const { result } = renderHook(() => useTenantMemberships("tenant-1"));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.rejectMembership("membership-1");
+    });
+
+    expect(tenantService.rejectTenantMembership).toHaveBeenCalledWith(
+      "membership-1",
+    );
+    expect(tenantService.getTenantMemberships).toHaveBeenCalledTimes(2);
+    expect(result.current.actionError).toBeNull();
+    expect(result.current.processingMembershipId).toBeNull();
+  });
+
+  it("should expose an action error when approving a membership fails", async () => {
+    vi.mocked(tenantService.getTenantMemberships).mockResolvedValue(
+      mockResponse,
+    );
+    vi.mocked(tenantService.approveTenantMembership).mockRejectedValue(
+      new Error("Request failed"),
+    );
+
+    const { result } = renderHook(() => useTenantMemberships("tenant-1"));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.approveMembership("membership-1");
+    });
+
+    expect(result.current.actionError).toBe(
+      "Failed to approve membership request.",
+    );
+    expect(result.current.error).toBeNull();
+    expect(result.current.processingMembershipId).toBeNull();
+    expect(tenantService.getTenantMemberships).toHaveBeenCalledTimes(1);
   });
 
   it("should not call the service when tenantId is empty", async () => {

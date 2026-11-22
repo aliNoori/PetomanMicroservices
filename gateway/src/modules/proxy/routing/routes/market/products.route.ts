@@ -3,6 +3,8 @@ import { GatewayRouteFactory } from '../../registry/gateway-route.factory';
 import {
   GatewayAuthMode,
   GatewayTarget,
+  GatewayTenantContext,
+  GatewayTenantResolution,
 } from '../../gateway-route.types';
 
 import { PERMISSION_SLUGS } from '../../../../../common/constants/permissions.constants';
@@ -18,15 +20,17 @@ import { PERMISSION_SLUGS } from '../../../../../common/constants/permissions.co
  *   through the Internal JWT.
  * - Tenant isolation must also be enforced by the Market service.
  */
-export const marketProductsRoute =
-  GatewayRouteFactory.proxy(
-    'GET',
-    '/products',
-    GatewayTarget.MARKET,
-    '/api/products',
-    GatewayAuthMode.JWT,
-    [PERMISSION_SLUGS.PRODUCT_READ],
-  );
+export const marketProductsRoute = GatewayRouteFactory.proxy(
+  'GET',
+  '/products',
+  GatewayTarget.MARKET,
+  '/api/products',
+  GatewayAuthMode.JWT,
+  [PERMISSION_SLUGS.PRODUCT_READ],
+  'json',
+  true,
+  GatewayTenantContext.REQUIRED,
+);
 
 /**
  * Create a new product within the current tenant.
@@ -37,15 +41,17 @@ export const marketProductsRoute =
  * - The downstream Market service receives the authenticated
  *   tenant context through the Internal JWT.
  */
-export const marketCreateProductRoute =
-  GatewayRouteFactory.proxy(
-    'POST',
-    '/products',
-    GatewayTarget.MARKET,
-    '/api/products',
-    GatewayAuthMode.JWT,
-    [PERMISSION_SLUGS.PRODUCT_CREATE],
-  );
+export const marketCreateProductRoute = GatewayRouteFactory.proxy(
+  'POST',
+  '/products',
+  GatewayTarget.MARKET,
+  '/api/products',
+  GatewayAuthMode.JWT,
+  [PERMISSION_SLUGS.PRODUCT_CREATE],
+  'json',
+  true,
+  GatewayTenantContext.REQUIRED,
+);
 
 /**
  * Update a product within the current tenant.
@@ -55,15 +61,17 @@ export const marketCreateProductRoute =
  * - Requires the PRODUCT_UPDATE permission.
  * - The product must belong to the authenticated tenant.
  */
-export const marketUpdateProductRoute =
-  GatewayRouteFactory.proxy(
-    'PUT',
-    '/products/:productId',
-    GatewayTarget.MARKET,
-    '/api/products/:productId',
-    GatewayAuthMode.JWT,
-    [PERMISSION_SLUGS.PRODUCT_UPDATE],
-  );
+export const marketUpdateProductRoute = GatewayRouteFactory.proxy(
+  'PUT',
+  '/products/:productId',
+  GatewayTarget.MARKET,
+  '/api/products/:productId',
+  GatewayAuthMode.JWT,
+  [PERMISSION_SLUGS.PRODUCT_UPDATE],
+  'json',
+  true,
+  GatewayTenantContext.REQUIRED,
+);
 
 /**
  * Delete a product within the current tenant.
@@ -74,15 +82,17 @@ export const marketUpdateProductRoute =
  * - The Market service must verify that the product belongs
  *   to the authenticated tenant before deletion.
  */
-export const marketDeleteProductRoute =
-  GatewayRouteFactory.proxy(
-    'DELETE',
-    '/products/:productId',
-    GatewayTarget.MARKET,
-    '/api/products/:productId',
-    GatewayAuthMode.JWT,
-    [PERMISSION_SLUGS.PRODUCT_DELETE],
-  );
+export const marketDeleteProductRoute = GatewayRouteFactory.proxy(
+  'DELETE',
+  '/products/:productId',
+  GatewayTarget.MARKET,
+  '/api/products/:productId',
+  GatewayAuthMode.JWT,
+  [PERMISSION_SLUGS.PRODUCT_DELETE],
+  'json',
+  true,
+  GatewayTenantContext.REQUIRED,
+);
 
 /**
  * Retrieve a specific product within the current tenant.
@@ -92,15 +102,17 @@ export const marketDeleteProductRoute =
  * - Requires the PRODUCT_READ permission.
  * - Tenant isolation must be enforced by the Market service.
  */
-export const marketProductByIdRoute =
-  GatewayRouteFactory.proxy(
-    'GET',
-    '/products/:productId',
-    GatewayTarget.MARKET,
-    '/api/products/:productId',
-    GatewayAuthMode.JWT,
-    [PERMISSION_SLUGS.PRODUCT_READ],
-  );
+export const marketProductByIdRoute = GatewayRouteFactory.proxy(
+  'GET',
+  '/products/:productId',
+  GatewayTarget.MARKET,
+  '/api/products/:productId',
+  GatewayAuthMode.JWT,
+  [PERMISSION_SLUGS.PRODUCT_READ],
+  'json',
+  true,
+  GatewayTenantContext.REQUIRED,
+);
 
 /**
  * Retrieve publicly available products for a store.
@@ -111,11 +123,15 @@ export const marketProductByIdRoute =
  * Store and product visibility rules must be enforced by the
  * downstream Market service.
  */
-export const marketPublicProductsRoute =
-  GatewayRouteFactory.proxy(
-    'GET',
-    '/public/stores/:storeSlug/products',
-    GatewayTarget.MARKET,
-    '/api/public/stores/:storeSlug/products',
-    GatewayAuthMode.PUBLIC,
-  );
+export const marketPublicProductsRoute = GatewayRouteFactory.proxy(
+  'GET',
+  '/public/stores/:storeSlug/products',
+  GatewayTarget.MARKET,
+  '/api/public/stores/:storeSlug/products',
+  GatewayAuthMode.PUBLIC,
+  [],
+  'json',
+  true,
+  GatewayTenantContext.NONE,
+  GatewayTenantResolution.STORE_SLUG,
+);

@@ -14,6 +14,7 @@ import type {
   ResendVerificationEmailRequest,
   RegisterUserRequest,
   RegisterUserResponse,
+  AuthProfileResponse,
 } from "../types/auth.types";
 
 class AuthService {
@@ -92,7 +93,14 @@ class AuthService {
    * Get authenticated user profile.
    */
   async getMe(): Promise<AuthUser> {
-    return apiClient.get<AuthUser>("/auth/profile");
+    const profile = await apiClient.get<AuthProfileResponse>("/auth/profile");
+
+    const { emailVerified, ...user } = profile;
+
+    return {
+      ...user,
+      isEmailVerified: emailVerified,
+    };
   }
 
   /**
@@ -161,10 +169,14 @@ class AuthService {
    */
   async resendVerificationEmail(
     payload: ResendVerificationEmailRequest,
-  ): Promise<void> {
-    await apiClient.post<void>("/auth/email-verification/resend", payload, {
-      skipAuthRefresh: true,
-    });
+  ): Promise<{ message: string }> {
+    return apiClient.post<{ message: string }>(
+      "/auth/email-verification/resend",
+      payload,
+      {
+        skipAuthRefresh: true,
+      },
+    );
   }
 }
 

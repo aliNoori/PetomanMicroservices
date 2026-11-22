@@ -9,7 +9,7 @@ import {
 
 import type { PendingTenant } from "@/features/tenant";
 
-export function ManageTenants() {
+export function PendingTenantsPage() {
   const {
     tenants,
     total,
@@ -119,3 +119,4 @@ export function ManageTenants() {
     </section>
   );
 }
+

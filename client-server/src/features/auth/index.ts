@@ -6,10 +6,10 @@
  * from this file.
  */
 
-export { Sessions, AuthGuard,SystemRoleGuard,WorkspaceTenantGuard } from "./components";
+export { Sessions, AuthGuard,SystemRoleGuard,WorkspaceTenantGuard,PermissionGuard } from "./components";
 
 // Hooks
-export { useAuth, useSessions } from "./hooks";
+export { useAuth, useSessions,usePermissions } from "./hooks";
 
 export type { UseSessionsResult } from "./hooks";
 
@@ -29,7 +29,6 @@ export type {
   LoginResponse,
   RefreshTokenRequest,
   RefreshTokenResponse,
-  AuthState,
   TenantOption
 } from "./types";
 

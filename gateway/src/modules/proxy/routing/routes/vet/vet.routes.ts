@@ -3,6 +3,7 @@ import { GatewayRouteFactory } from '../../registry/gateway-route.factory';
 import {
   GatewayAuthMode,
   GatewayTarget,
+  GatewayTenantContext,
 } from '../../gateway-route.types';
 
 import { PERMISSION_SLUGS } from '../../../../../common/constants/permissions.constants';
@@ -49,6 +50,9 @@ export const vetRoutes = [
     GatewayTarget.VET,
     '/vets/:vetId/appointments',
     GatewayAuthMode.JWT,
-    //[PERMISSION_SLUGS.APPOINTMENT_READ],
+    [],
+    'json',
+    true,
+    GatewayTenantContext.REQUIRED,
   ),
 ];

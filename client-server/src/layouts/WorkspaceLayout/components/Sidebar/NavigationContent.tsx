@@ -1,41 +1,29 @@
-
 import { NavLink, useParams } from "react-router-dom";
 
-import { useAuth } from "@/features/auth";
+import { usePermissions } from "@/features/auth";
 
 import { workspaceNavigationConfig } from "./navigation/navigation.config";
 
-import type {
-  WorkspaceNavigationItem,
-} from "./navigation/navigation.types";
+import type { WorkspaceNavigationItem } from "./navigation/navigation.types";
 
 interface NavigationContentProps {
   onNavigate?: () => void;
 }
 
-export function NavigationContent({
-  onNavigate,
-}: NavigationContentProps) {
+export function NavigationContent({ onNavigate }: NavigationContentProps) {
   const { tenantId } = useParams<{ tenantId: string }>();
-  const { permissions } = useAuth();
+  const { hasAllPermissions } = usePermissions();
 
   if (!tenantId) {
     return null;
   }
 
   const hasAccess = (item: WorkspaceNavigationItem): boolean => {
-    const requiredPermissions = item.requiredPermissions ?? [];
-
-    return requiredPermissions.every((permission) =>
-      permissions.includes(permission),
-    );
+    return hasAllPermissions(item.requiredPermissions ?? []);
   };
 
   return (
-    <nav
-      aria-label="Workspace navigation"
-      className="space-y-5 sm:space-y-6"
-    >
+    <nav aria-label="Workspace navigation" className="space-y-5 sm:space-y-6">
       {workspaceNavigationConfig.map((group) => {
         const visibleItems = group.items.filter(hasAccess);
 

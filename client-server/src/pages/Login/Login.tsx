@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 
 import { useLocation, useNavigate } from "react-router-dom";
@@ -55,7 +56,7 @@ function getSafeReturnTo(
 }
 
 /**
- * Prevent regular users from returning to system-admin routes.
+ * Prevent regular users from returning to restricted routes.
  */
 function getUserReturnTo(value: ReturnToLocation): ReturnToLocation {
   const pathname = value.pathname;
@@ -74,6 +75,13 @@ function getUserReturnTo(value: ReturnToLocation): ReturnToLocation {
   );
 
   return isRestricted ? DEFAULT_RETURN_TO : value;
+}
+
+/**
+ * Workspace routes require an active Tenant context.
+ */
+function isWorkspacePath(pathname: string): boolean {
+  return pathname.startsWith("/workspace/");
 }
 
 export function LoginPage() {
@@ -115,11 +123,21 @@ export function LoginPage() {
         return;
       }
 
-      navigate("/auth/select-tenant", {
+      const userReturnTo = getUserReturnTo(returnTo);
+
+      if (isWorkspacePath(userReturnTo.pathname)) {
+        navigate("/auth/select-tenant", {
+          replace: true,
+          state: {
+            returnTo: userReturnTo,
+          } satisfies AuthNavigationState,
+        });
+
+        return;
+      }
+
+      navigate(userReturnTo, {
         replace: true,
-        state: {
-          returnTo: getUserReturnTo(returnTo),
-        } satisfies AuthNavigationState,
       });
     } catch (error) {
       if (isAxiosError<ApiErrorResponse>(error)) {

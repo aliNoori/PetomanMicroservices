@@ -60,6 +60,8 @@ export interface CreateTenantResponse {
 
 export type TenantStatus = "PENDING" | "ACTIVE" | "REJECTED";
 
+export type TenantMembershipStatus = "PENDING" | "ACTIVE" | "REJECTED";
+
 export interface PendingTenant {
   id: string;
   name: string;
@@ -97,7 +99,7 @@ export interface ApproveTenantResponse {
     slug: string;
     type: TenantType;
     ownerId: string;
-    status: "ACTIVE";
+    status: TenantStatus;
     reviewedAt: string;
     reviewedBy: string;
     rejectionReason: null;
@@ -107,7 +109,7 @@ export interface ApproveTenantResponse {
     membershipId: string;
     tenantId: string;
     userId: string;
-    status: string;
+    status: TenantMembershipStatus;
   };
 
   ownerRole: {
@@ -143,11 +145,26 @@ export interface TenantMembershipRole {
   slug: string;
 }
 
+export interface ApproveTenantMembershipResponse {
+  membershipId: string;
+  tenantId: string;
+  userId: string;
+  status: "ACTIVE";
+  role: TenantDefaultRole;
+}
+
+export interface RejectTenantMembershipResponse {
+  membershipId: string;
+  tenantId: string;
+  userId: string;
+  status: "REJECTED";
+}
+
 export interface TenantMembership {
   membershipId: string;
   tenantId: string;
   userId: string;
-  status: "PENDING" | "ACTIVE" | "REJECTED";
+  status: TenantMembershipStatus;
   createdAt: string;
   user: TenantMembershipUser | null;
   roles: TenantMembershipRole[];

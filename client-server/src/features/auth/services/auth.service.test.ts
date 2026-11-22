@@ -9,6 +9,35 @@ describe("AuthService sessions", () => {
     vi.restoreAllMocks();
   });
 
+  it("gets the authenticated user profile and normalizes email verification", async () => {
+    const profile = {
+      id: "user-123",
+      email: "user@example.com",
+      firstName: "Ali",
+      lastName: "Noori",
+      isActive: true,
+      emailVerified: true,
+      emailVerifiedAt: "2026-11-18T10:00:00.000Z",
+      avatarUrl: null,
+      systemRoles: [],
+      tenantMemberships: [],
+      tenantRoles: [],
+      createdAt: "2026-11-18T09:00:00.000Z",
+    };
+
+    const getSpy = vi.spyOn(apiClient, "get").mockResolvedValue(profile);
+
+    const result = await authService.getMe();
+
+    expect(getSpy).toHaveBeenCalledTimes(1);
+    expect(getSpy).toHaveBeenCalledWith("/auth/profile");
+
+    expect(result.isEmailVerified).toBe(true);
+    expect(result).not.toHaveProperty("emailVerified");
+    expect(result.id).toBe(profile.id);
+    expect(result.tenantMemberships).toEqual([]);
+  });
+
   it("gets authenticated user sessions", async () => {
     const sessions = [
       {

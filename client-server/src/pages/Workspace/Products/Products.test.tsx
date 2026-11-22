@@ -1,15 +1,17 @@
-﻿import { beforeEach, describe, expect, it, vi } from "vitest";
+﻿
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { ProductsPage } from "./Products";
-import { useAuth } from "@/features/auth";
+import { useAuth, usePermissions } from "@/features/auth";
 import { useProducts } from "@/features/products";
 
 import type { Product } from "@/features/products";
 
 vi.mock("@/features/auth", () => ({
   useAuth: vi.fn(),
+  usePermissions: vi.fn(),
 }));
 
 vi.mock("@/features/products", () => ({
@@ -69,6 +71,28 @@ function createAuthContext(
   } as ReturnType<typeof useAuth>;
 }
 
+function mockPermissions(permissions: string[]) {
+  vi.mocked(usePermissions).mockReturnValue({
+    permissions,
+    hasPermission: (permission) => permissions.includes(permission),
+    hasAllPermissions: (required) =>
+      required.every((permission) => permissions.includes(permission)),
+    hasAnyPermission: (required) =>
+      required.some((permission) => permissions.includes(permission)),
+  });
+}
+
+function mockAuth(
+  overrides: Partial<ReturnType<typeof useAuth>> = {},
+) {
+  const auth = createAuthContext(overrides);
+
+  vi.mocked(useAuth).mockReturnValue(auth);
+  mockPermissions(auth.permissions);
+
+  return auth;
+}
+
 function createHookResult(
   overrides: Partial<ReturnType<typeof useProducts>> = {},
 ) {
@@ -102,7 +126,7 @@ describe("ProductsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    vi.mocked(useAuth).mockReturnValue(createAuthContext());
+    mockAuth();
     vi.mocked(useProducts).mockReturnValue(createHookResult());
   });
 
@@ -115,7 +139,9 @@ describe("ProductsPage", () => {
 
     expect(screen.getByText("Test Store")).toBeInTheDocument();
     expect(screen.getByText("Test Product")).toBeInTheDocument();
-    expect(screen.getByText("A sample product description")).toBeInTheDocument();
+    expect(
+      screen.getByText("A sample product description"),
+    ).toBeInTheDocument();
     expect(screen.getByText("Active")).toBeInTheDocument();
 
     expect(useProducts).toHaveBeenCalledWith(true);
@@ -132,7 +158,13 @@ describe("ProductsPage", () => {
       ),
     ).toBeInTheDocument();
 
-    expect(screen.getByText(new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(mockProduct.stock))).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        new Intl.NumberFormat(undefined, {
+          maximumFractionDigits: 0,
+        }).format(mockProduct.stock),
+      ),
+    ).toBeInTheDocument();
   });
 
   it("should display loading state", () => {
@@ -190,9 +222,7 @@ describe("ProductsPage", () => {
     const user = userEvent.setup();
     const refresh = vi.fn().mockResolvedValue(undefined);
 
-    vi.mocked(useProducts).mockReturnValue(
-      createHookResult({ refresh }),
-    );
+    vi.mocked(useProducts).mockReturnValue(createHookResult({ refresh }));
 
     renderProducts();
 
@@ -202,11 +232,9 @@ describe("ProductsPage", () => {
   });
 
   it("should hide product data and actions without read permission", () => {
-    vi.mocked(useAuth).mockReturnValue(
-      createAuthContext({
-        permissions: ["product.create"],
-      }),
-    );
+    mockAuth({
+      permissions: ["product.create"],
+    });
 
     renderProducts();
 
@@ -219,11 +247,9 @@ describe("ProductsPage", () => {
   });
 
   it("should hide create action without create permission", () => {
-    vi.mocked(useAuth).mockReturnValue(
-      createAuthContext({
-        permissions: ["product.read"],
-      }),
-    );
+    mockAuth({
+      permissions: ["product.read"],
+    });
 
     renderProducts();
 
@@ -233,11 +259,9 @@ describe("ProductsPage", () => {
   });
 
   it("should hide edit and delete actions without their permissions", () => {
-    vi.mocked(useAuth).mockReturnValue(
-      createAuthContext({
-        permissions: ["product.read"],
-      }),
-    );
+    mockAuth({
+      permissions: ["product.read"],
+    });
 
     renderProducts();
 
@@ -254,15 +278,11 @@ describe("ProductsPage", () => {
     const user = userEvent.setup();
     const create = vi.fn().mockResolvedValue(mockProduct);
 
-    vi.mocked(useProducts).mockReturnValue(
-      createHookResult({ create }),
-    );
+    vi.mocked(useProducts).mockReturnValue(createHookResult({ create }));
 
     renderProducts();
 
-    await user.click(
-      screen.getByRole("button", { name: "Create product" }),
-    );
+    await user.click(screen.getByRole("button", { name: "Create product" }));
 
     const dialog = screen.getByRole("dialog", { name: "Create product" });
     expect(dialog).toBeInTheDocument();
@@ -301,9 +321,7 @@ describe("ProductsPage", () => {
     const user = userEvent.setup();
     const update = vi.fn().mockResolvedValue(mockProduct);
 
-    vi.mocked(useProducts).mockReturnValue(
-      createHookResult({ update }),
-    );
+    vi.mocked(useProducts).mockReturnValue(createHookResult({ update }));
 
     renderProducts();
 
@@ -318,9 +336,7 @@ describe("ProductsPage", () => {
     await user.clear(nameInput);
     await user.type(nameInput, "Updated Product");
 
-    await user.click(
-      screen.getByRole("button", { name: "Save changes" }),
-    );
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
 
     await waitFor(() => {
       expect(update).toHaveBeenCalledWith(
@@ -343,23 +359,20 @@ describe("ProductsPage", () => {
     const user = userEvent.setup();
     const remove = vi.fn().mockResolvedValue(undefined);
 
-    vi.mocked(useProducts).mockReturnValue(
-      createHookResult({ remove }),
-    );
+    vi.mocked(useProducts).mockReturnValue(createHookResult({ remove }));
 
     renderProducts();
 
     await user.click(screen.getByRole("button", { name: "Delete" }));
 
-    expect(
-      screen.getByRole("alertdialog", { name: "Delete product" }),
-    ).toBeInTheDocument();
+    const dialog = screen.getByRole("alertdialog", {
+      name: "Delete product",
+    });
 
-    expect(within(screen.getByRole("alertdialog")).getByText("Test Product")).toBeInTheDocument();
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByText("Test Product")).toBeInTheDocument();
 
-    await user.click(
-      screen.getByRole("button", { name: "Delete product" }),
-    );
+    await user.click(screen.getByRole("button", { name: "Delete product" }));
 
     await waitFor(() => {
       expect(remove).toHaveBeenCalledWith(mockProduct.id);
@@ -374,17 +387,13 @@ describe("ProductsPage", () => {
     const user = userEvent.setup();
     const remove = vi.fn().mockRejectedValue(new Error("Delete failed"));
 
-    vi.mocked(useProducts).mockReturnValue(
-      createHookResult({ remove }),
-    );
+    vi.mocked(useProducts).mockReturnValue(createHookResult({ remove }));
 
     renderProducts();
 
     await user.click(screen.getByRole("button", { name: "Delete" }));
 
-    await user.click(
-      screen.getByRole("button", { name: "Delete product" }),
-    );
+    await user.click(screen.getByRole("button", { name: "Delete product" }));
 
     expect(
       await screen.findByText(

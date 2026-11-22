@@ -144,7 +144,7 @@ Route::middleware([
     TenantContextMiddleware::class,
 ])->group(function () {
     Route::get(
-        '/public/products',
+        '/public/stores/{storeSlug}/products',
         [ProductController::class, 'publicIndex'],
     );
 });

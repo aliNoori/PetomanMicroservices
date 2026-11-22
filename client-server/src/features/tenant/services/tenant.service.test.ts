@@ -8,6 +8,8 @@ import type {
   CreateTenantRequest,
   CreateTenantResponse,
   TenantMembershipsResponse,
+  ApproveTenantMembershipResponse,
+  RejectTenantMembershipResponse,
 } from "../types/tenant.types";
 
 vi.mock("@/lib/api/client", () => ({
@@ -59,10 +61,7 @@ describe("TenantService", () => {
 
       const result = await tenantService.createTenant(payload);
 
-      expect(apiClient.post).toHaveBeenCalledWith(
-        "/auth/tenants",
-        payload,
-      );
+      expect(apiClient.post).toHaveBeenCalledWith("/auth/tenants", payload);
 
       expect(result).toEqual(response);
       expect(result.tenant.status).toBe("PENDING");
@@ -73,9 +72,9 @@ describe("TenantService", () => {
 
       vi.mocked(apiClient.post).mockRejectedValue(error);
 
-      await expect(
-        tenantService.createTenant(payload),
-      ).rejects.toThrow("Tenant slug already exists.");
+      await expect(tenantService.createTenant(payload)).rejects.toThrow(
+        "Tenant slug already exists.",
+      );
     });
   });
 
@@ -153,6 +152,78 @@ describe("TenantService", () => {
       await expect(
         tenantService.getTenantMemberships(tenantId),
       ).rejects.toThrow("Failed to load tenant memberships.");
+    });
+  });
+
+  describe("approveTenantMembership", () => {
+    const membershipId = "membership-123";
+
+    const response: ApproveTenantMembershipResponse = {
+      membershipId,
+      tenantId: "tenant-123",
+      userId: "user-123",
+      status: "ACTIVE",
+      role: {
+        id: "role-staff",
+        slug: "staff",
+      },
+    };
+
+    it("approves a tenant membership successfully", async () => {
+      vi.mocked(apiClient.post).mockResolvedValue(response);
+
+      const result = await tenantService.approveTenantMembership(membershipId);
+
+      expect(apiClient.post).toHaveBeenCalledWith(
+        `/auth/tenant-memberships/${membershipId}/approve`,
+      );
+
+      expect(result).toEqual(response);
+      expect(result.status).toBe("ACTIVE");
+    });
+
+    it("propagates API errors", async () => {
+      vi.mocked(apiClient.post).mockRejectedValue(
+        new Error("Failed to approve membership."),
+      );
+
+      await expect(
+        tenantService.approveTenantMembership(membershipId),
+      ).rejects.toThrow("Failed to approve membership.");
+    });
+  });
+
+  describe("rejectTenantMembership", () => {
+    const membershipId = "membership-123";
+
+    const response: RejectTenantMembershipResponse = {
+      membershipId,
+      tenantId: "tenant-123",
+      userId: "user-123",
+      status: "REJECTED",
+    };
+
+    it("rejects a tenant membership successfully", async () => {
+      vi.mocked(apiClient.post).mockResolvedValue(response);
+
+      const result = await tenantService.rejectTenantMembership(membershipId);
+
+      expect(apiClient.post).toHaveBeenCalledWith(
+        `/auth/tenant-memberships/${membershipId}/reject`,
+      );
+
+      expect(result).toEqual(response);
+      expect(result.status).toBe("REJECTED");
+    });
+
+    it("propagates API errors", async () => {
+      vi.mocked(apiClient.post).mockRejectedValue(
+        new Error("Failed to reject membership."),
+      );
+
+      await expect(
+        tenantService.rejectTenantMembership(membershipId),
+      ).rejects.toThrow("Failed to reject membership.");
     });
   });
 });

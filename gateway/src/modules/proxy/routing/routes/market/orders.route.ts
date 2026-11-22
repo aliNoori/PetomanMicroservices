@@ -1,10 +1,9 @@
-import {
-  GatewayRouteFactory,
-} from '../../registry/gateway-route.factory';
+import { GatewayRouteFactory } from '../../registry/gateway-route.factory';
 
 import {
   GatewayAuthMode,
   GatewayTarget,
+  GatewayTenantContext,
 } from '../../gateway-route.types';
 
 import { PERMISSION_SLUGS } from '../../../../../common/constants/permissions.constants';
@@ -19,15 +18,17 @@ import { PERMISSION_SLUGS } from '../../../../../common/constants/permissions.co
  *   Market service through the Internal JWT.
  * - Tenant isolation must be enforced by the Market service.
  */
-export const marketOrdersRoute =
-  GatewayRouteFactory.proxy(
-    'GET',
-    '/orders',
-    GatewayTarget.MARKET,
-    '/api/orders',
-    GatewayAuthMode.JWT,
-    [PERMISSION_SLUGS.ORDER_READ],
-  );
+export const marketOrdersRoute = GatewayRouteFactory.proxy(
+  'GET',
+  '/orders',
+  GatewayTarget.MARKET,
+  '/api/orders',
+  GatewayAuthMode.JWT,
+  [PERMISSION_SLUGS.ORDER_READ],
+  'json',
+  true,
+  GatewayTenantContext.REQUIRED,
+);
 
 /**
  * Create a new order within the current tenant context.
@@ -41,15 +42,17 @@ export const marketOrdersRoute =
  *   authenticated internal identity rather than trusting a
  *   client-supplied user identity.
  */
-export const marketCreateOrderRoute =
-  GatewayRouteFactory.proxy(
-    'POST',
-    '/orders',
-    GatewayTarget.MARKET,
-    '/api/orders',
-    GatewayAuthMode.JWT,
-    [PERMISSION_SLUGS.ORDER_CREATE],
-  );
+export const marketCreateOrderRoute = GatewayRouteFactory.proxy(
+  'POST',
+  '/orders',
+  GatewayTarget.MARKET,
+  '/api/orders',
+  GatewayAuthMode.JWT,
+  [PERMISSION_SLUGS.ORDER_CREATE],
+  'json',
+  true,
+  GatewayTenantContext.REQUIRED,
+);
 
 /**
  * Retrieve a specific order within the current tenant context.
@@ -62,12 +65,14 @@ export const marketCreateOrderRoute =
  * - Resource ownership must be enforced downstream where
  *   applicable.
  */
-export const marketOrderByIdRoute =
-  GatewayRouteFactory.proxy(
-    'GET',
-    '/orders/:orderId',
-    GatewayTarget.MARKET,
-    '/api/orders/:orderId',
-    GatewayAuthMode.JWT,
-    [PERMISSION_SLUGS.ORDER_READ],
-  );
+export const marketOrderByIdRoute = GatewayRouteFactory.proxy(
+  'GET',
+  '/orders/:orderId',
+  GatewayTarget.MARKET,
+  '/api/orders/:orderId',
+  GatewayAuthMode.JWT,
+  [PERMISSION_SLUGS.ORDER_READ],
+  'json',
+  true,
+  GatewayTenantContext.REQUIRED,
+);

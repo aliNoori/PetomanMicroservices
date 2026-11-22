@@ -1,1 +1,0 @@
-export { ManageTenants } from "./ManageTenants";

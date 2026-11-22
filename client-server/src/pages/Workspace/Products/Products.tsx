@@ -1,8 +1,7 @@
-
 import { useState } from "react";
 
 import { Button } from "@/components/common";
-import { useAuth } from "@/features/auth";
+import { useAuth, usePermissions } from "@/features/auth";
 import {
   useProducts,
   type CreateProductRequest,
@@ -14,7 +13,7 @@ import { ProductDeleteDialog } from "./ProductDeleteDialog";
 
 export function ProductsPage() {
   const { permissions, selectedTenant } = useAuth();
-
+  const { hasPermission } = usePermissions();
   const canRead = permissions.includes("product.read");
   const canCreate = permissions.includes("product.create");
   const canUpdate = permissions.includes("product.update");
@@ -205,9 +204,7 @@ export function ProductsPage() {
             <>
               <section className="grid gap-4 sm:grid-cols-3">
                 <article className="rounded-xl border border-border bg-surface p-5">
-                  <p className="text-sm text-text-secondary">
-                    Loaded products
-                  </p>
+                  <p className="text-sm text-text-secondary">Loaded products</p>
 
                   <p className="mt-2 text-2xl font-bold text-text-primary">
                     {products.length}
@@ -215,9 +212,7 @@ export function ProductsPage() {
                 </article>
 
                 <article className="rounded-xl border border-border bg-surface p-5">
-                  <p className="text-sm text-text-secondary">
-                    Active products
-                  </p>
+                  <p className="text-sm text-text-secondary">Active products</p>
 
                   <p className="mt-2 text-2xl font-bold text-text-primary">
                     {products.filter((product) => product.is_active).length}
@@ -269,8 +264,7 @@ export function ProductsPage() {
 
                     <tbody className="divide-y divide-border">
                       {products.map((product) => {
-                        const isActionLoading =
-                          actionProductId === product.id;
+                        const isActionLoading = actionProductId === product.id;
 
                         return (
                           <tr
@@ -372,9 +366,7 @@ export function ProductsPage() {
         <ProductFormDialog
           product={editingProduct}
           submitting={
-            editingProduct
-              ? actionProductId === editingProduct.id
-              : creating
+            editingProduct ? actionProductId === editingProduct.id : creating
           }
           onClose={closeFormDialog}
           onSubmit={handleFormSubmit}

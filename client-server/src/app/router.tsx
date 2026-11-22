@@ -2,12 +2,14 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 
 import { VerifyEmailPage } from "@/pages/VerifyEmail";
 import { CreateTenantPage } from "@/pages/Tenant";
+import { AdminLayout } from "@/layouts/AdminLayout";
 import {
   AuthGuard,
   SystemRoleGuard,
   WorkspaceTenantGuard,
+  PermissionGuard,
 } from "@/features/auth";
-import { ManageTenants } from "@/pages/Tenant/ManageTenants";
+import { PendingTenantsPage } from "@/pages/Admin/Tenants/Pending";
 
 import {
   ProfilePage,
@@ -23,7 +25,7 @@ import { ErrorPage } from "../pages/Error";
 import { ForbiddenPage } from "../pages/Forbidden";
 import { HomePage } from "../pages/Home";
 import { NotFoundPage } from "../pages/NotFound";
-import { TenantPage } from "../pages/Tenant";
+import { TenantPage, MyWorkspacesPage } from "../pages/Tenant";
 
 import { AppLayout } from "@/layouts/AppLayout";
 import { WorkspaceLayout } from "@/layouts/WorkspaceLayout";
@@ -80,11 +82,11 @@ export const router = createBrowserRouter([
     element: <SystemRoleGuard requiredRole="SUPER_ADMIN" />,
     children: [
       {
-        element: <AppLayout />,
+        element: <AdminLayout />,
         children: [
           {
             path: "/admin/tenants/pending",
-            element: <ManageTenants />,
+            element: <PendingTenantsPage />,
           },
         ],
       },
@@ -111,19 +113,37 @@ export const router = createBrowserRouter([
               },
               {
                 path: "products",
-                element: <ProductsPage />,
+                element: (
+                  <PermissionGuard requiredPermissions={["product.read"]}>
+                    <ProductsPage />
+                  </PermissionGuard>
+                ),
               },
               {
                 path: "orders",
-                element: <OrdersPage />,
+                element: (
+                  <PermissionGuard requiredPermissions={["order.read"]}>
+                    <OrdersPage />
+                  </PermissionGuard>
+                ),
               },
               {
                 path: "members",
-                element: <MembersPage />,
+                element: (
+                  <PermissionGuard
+                    requiredPermissions={["tenant.membership.read"]}
+                  >
+                    <MembersPage />
+                  </PermissionGuard>
+                ),
               },
               {
                 path: "settings",
-                element: <WorkspaceSettingsPage />,
+                element: (
+                  <PermissionGuard requiredPermissions={["tenant.update"]}>
+                    <WorkspaceSettingsPage />
+                  </PermissionGuard>
+                ),
               },
             ],
           },
@@ -136,6 +156,10 @@ export const router = createBrowserRouter([
           {
             path: "/profile",
             element: <ProfilePage />,
+          },
+          {
+            path: "/my-workspaces",
+            element: <MyWorkspacesPage />,
           },
           {
             path: "/tenants/create",
@@ -177,3 +201,4 @@ export const router = createBrowserRouter([
     element: <Navigate to="/404" replace />,
   },
 ]);
+
