@@ -2,6 +2,10 @@ import { Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
 
 import { ProxyController } from './controllers/proxy.controller';
+import { ProductImageUploadInterceptor } from './interceptors/product-image-upload.interceptor';
+import { ProductOrchestrationService } from './services/product-orchestration.service';
+import { GatewayOrchestrationService } from './services/gateway-orchestration.service';
+import { ProductImageUrlEnricherService } from './services/product-image-url-enricher.service';
 import { ProxyService } from './services/proxy.service';
 import { RouteResolverService } from './services/route-resolver.service';
 import { ProxyHeaderService } from './services/proxy-header.service';
@@ -35,6 +39,10 @@ import { TenantContextValidatorService } from './services/tenant-context-validat
     InternalJwtService,
     GatewayDownstreamAuthService,
     GatewayAuthorizationService,
+    ProductImageUploadInterceptor,
+    ProductOrchestrationService,
+    GatewayOrchestrationService,
+    ProductImageUrlEnricherService,
   ],
 })
 export class ProxyModule {}

@@ -1,5 +1,4 @@
-
-import {
+﻿import {
   GatewayAuthMode,
   GatewayRoute,
   GatewayRouteType,
@@ -67,6 +66,33 @@ export class GatewayRouteFactory {
       auth,
       permissions,
       tenantContext,
+    };
+  }
+
+  /**
+   * Create an orchestration route.
+   *
+   * `handler` identifies the orchestration operation.
+   * `permissions` defines Gateway-level authorization.
+   */
+  static orchestration(
+    method: string,
+    path: string,
+    handler: string,
+    auth: GatewayAuthMode = GatewayAuthMode.JWT,
+    permissions: readonly string[] = [],
+    tenantContext: GatewayTenantContext = GatewayTenantContext.NONE,
+    servicePrefixTarget?: GatewayTarget,
+  ): GatewayRoute {
+    return {
+      method: method.toUpperCase(),
+      path,
+      type: GatewayRouteType.ORCHESTRATION,
+      handler,
+      auth,
+      permissions,
+      tenantContext,
+      servicePrefixTarget,
     };
   }
 }

@@ -1,6 +1,13 @@
-import { Injectable, ForbiddenException, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  ForbiddenException,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 
 import type { AuthenticatedRequest } from '@petoman/security';
+
+import { GatewayOrchestrationService } from './gateway-orchestration.service';
 
 import { AggregationService, AggregationContext } from './aggregation.service';
 
@@ -24,6 +31,7 @@ import {
   GatewayAuthMode,
   GatewayTenantContext,
   GatewayTenantResolution,
+  GatewayOrchestrationRoute,
 } from '../routing/gateway-route.types';
 import { GatewayAuthGuard } from '../../../common/guards/gateway-auth.guard';
 import { TenantResolverService } from './tenant-resolver.service';
@@ -61,6 +69,8 @@ export class GatewayDispatcherService {
     private readonly proxyService: ProxyService,
 
     private readonly aggregationService: AggregationService,
+
+    private readonly orchestrationService: GatewayOrchestrationService,
 
     private readonly proxyHeaderService: ProxyHeaderService,
 
@@ -117,6 +127,13 @@ export class GatewayDispatcherService {
 
       case GatewayRouteType.AGGREGATION:
         return this.dispatchAggregation(routeMatch.route, routeMatch, request);
+
+      case GatewayRouteType.ORCHESTRATION:
+        return this.dispatchOrchestration(
+          routeMatch.route,
+          routeMatch,
+          request,
+        );
 
       default: {
         const exhaustiveCheck: never = routeMatch.route;
@@ -210,5 +227,25 @@ export class GatewayDispatcherService {
     };
 
     return this.aggregationService.execute(handler, context);
+  }
+
+  /**
+   * Execute an orchestration route.
+   */
+  private async dispatchOrchestration(
+    route: GatewayOrchestrationRoute,
+    routeMatch: GatewayRouteMatch,
+    request: AuthenticatedRequest,
+  ): Promise<unknown> {
+    if (!route.handler) {
+      throw new Error(
+        `Orchestration route "${route.path}" does not define a handler.`,
+      );
+    }
+
+    return this.orchestrationService.execute(route.handler, {
+      request,
+      params: routeMatch.params,
+    });
   }
 }

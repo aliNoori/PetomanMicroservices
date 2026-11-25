@@ -1,5 +1,7 @@
 import { ForbiddenException } from '@nestjs/common';
 
+import { GatewayOrchestrationService } from './gateway-orchestration.service';
+
 import type { AuthenticatedRequest } from '@petoman/security';
 
 import {
@@ -46,6 +48,10 @@ describe('GatewayDispatcherService', () => {
   const aggregationService = {
     execute: jest.fn(),
   } as unknown as jest.Mocked<AggregationService>;
+
+  const orchestrationService = {
+    execute: jest.fn(),
+  } as unknown as jest.Mocked<GatewayOrchestrationService>;
 
   const proxyHeaderService = {
     getForwardHeaders: jest.fn(),
@@ -132,6 +138,7 @@ describe('GatewayDispatcherService', () => {
       tenantContextValidator,
       proxyService,
       aggregationService,
+      orchestrationService,
       proxyHeaderService,
       gatewayAuthGuard,
       gatewayAuthorizationService,
@@ -517,5 +524,49 @@ describe('GatewayDispatcherService', () => {
     expect(proxyHeaderService.getForwardHeaders).not.toHaveBeenCalled();
 
     expect(proxyService.forward).not.toHaveBeenCalled();
+  });
+
+  it('should forward the original request stream for multipart requests', async () => {
+    const multipartRoute: GatewayProxyRoute = {
+      ...proxyRoute,
+      method: 'POST',
+      path: '/products',
+      downstreamPath: '/api/products',
+    };
+
+    const multipartRequest = {
+      ...request,
+      method: 'POST',
+      path: '/api/products',
+      headers: {
+        'content-type': 'multipart/form-data; boundary=----test-boundary',
+      },
+      body: {
+        parsed: true,
+      },
+      is: jest.fn().mockReturnValue(true),
+    } as unknown as AuthenticatedRequest;
+
+    routeResolver.resolve.mockReturnValue({
+      route: multipartRoute,
+      params: {},
+    });
+
+    routeResolver.getDownstreamPath.mockReturnValue('/api/products');
+
+    await service.dispatch(multipartRequest);
+
+    expect(multipartRequest.is).toHaveBeenCalledWith('multipart/form-data');
+
+    expect(proxyService.forward).toHaveBeenCalledTimes(1);
+
+    expect(proxyService.forward).toHaveBeenCalledWith(
+      multipartRoute,
+      'POST',
+      '/api/products',
+      expect.any(Object),
+      multipartRequest,
+      multipartRequest.query,
+    );
   });
 });

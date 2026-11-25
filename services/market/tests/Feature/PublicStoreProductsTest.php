@@ -35,9 +35,9 @@ class PublicStoreProductsTest extends TestCase
             VerifyInternalJwt::class,
             TenantContextMiddleware::class,
         ])->get(
-            '/_testing/public/stores/{storeSlug}/products',
-            [ProductController::class, 'publicIndex'],
-        );
+                '/_testing/public/stores/{storeSlug}/products',
+                [ProductController::class, 'publicIndex'],
+            );
     }
 
     public function test_store_route_returns_only_active_products_of_token_tenant(): void
@@ -94,6 +94,144 @@ class PublicStoreProductsTest extends TestCase
                 'TENANT_CONTEXT_REQUIRED',
             );
     }
+
+
+    public function test_store_products_can_be_searched_by_name_or_description(): void
+    {
+        Product::factory()
+            ->forTenant('tenant-001')
+            ->create([
+                'name' => 'Gaming Laptop',
+                'description' => 'High performance computer',
+                'is_active' => true,
+            ]);
+
+        Product::factory()
+            ->forTenant('tenant-001')
+            ->create([
+                'name' => 'Office Monitor',
+                'description' => 'Gaming display',
+                'is_active' => true,
+            ]);
+
+        Product::factory()
+            ->forTenant('tenant-001')
+            ->create([
+                'name' => 'Office Keyboard',
+                'description' => 'Standard keyboard',
+                'is_active' => true,
+            ]);
+
+        $token = $this->createTenantToken('tenant-001');
+
+        $this->withToken($token)
+            ->getJson('/_testing/public/stores/petoman-store/products?search=Gaming')
+            ->assertOk()
+            ->assertJsonCount(2, 'data.products')
+            ->assertJsonFragment([
+                'name' => 'Gaming Laptop',
+            ])
+            ->assertJsonFragment([
+                'name' => 'Office Monitor',
+            ])
+            ->assertJsonMissing([
+                'name' => 'Office Keyboard',
+            ]);
+    }
+
+    public function test_store_products_can_be_filtered_by_price_range(): void
+    {
+        Product::factory()
+            ->forTenant('tenant-001')
+            ->create([
+                'name' => 'Cheap Product',
+                'price' => 50000,
+                'is_active' => true,
+            ]);
+
+        Product::factory()
+            ->forTenant('tenant-001')
+            ->create([
+                'name' => 'Matching Product',
+                'price' => 150000,
+                'is_active' => true,
+            ]);
+
+        Product::factory()
+            ->forTenant('tenant-001')
+            ->create([
+                'name' => 'Expensive Product',
+                'price' => 300000,
+                'is_active' => true,
+            ]);
+
+        $token = $this->createTenantToken('tenant-001');
+
+        $this->withToken($token)
+            ->getJson(
+                '/_testing/public/stores/petoman-store/products?min_price=100000&max_price=200000',
+            )
+            ->assertOk()
+            ->assertJsonCount(1, 'data.products')
+            ->assertJsonFragment([
+                'name' => 'Matching Product',
+            ])
+            ->assertJsonMissing([
+                'name' => 'Cheap Product',
+            ])
+            ->assertJsonMissing([
+                'name' => 'Expensive Product',
+            ]);
+    }
+
+    public function test_store_products_can_combine_search_and_price_filters(): void
+    {
+        Product::factory()
+            ->forTenant('tenant-001')
+            ->create([
+                'name' => 'Gaming Laptop',
+                'description' => 'Gaming computer',
+                'price' => 150000,
+                'is_active' => true,
+            ]);
+
+        Product::factory()
+            ->forTenant('tenant-001')
+            ->create([
+                'name' => 'Gaming Monitor',
+                'description' => 'Gaming display',
+                'price' => 300000,
+                'is_active' => true,
+            ]);
+
+        Product::factory()
+            ->forTenant('tenant-001')
+            ->create([
+                'name' => 'Office Laptop',
+                'description' => 'Office computer',
+                'price' => 150000,
+                'is_active' => true,
+            ]);
+
+        $token = $this->createTenantToken('tenant-001');
+
+        $this->withToken($token)
+            ->getJson(
+                '/_testing/public/stores/petoman-store/products?search=Gaming&min_price=100000&max_price=200000',
+            )
+            ->assertOk()
+            ->assertJsonCount(1, 'data.products')
+            ->assertJsonFragment([
+                'name' => 'Gaming Laptop',
+            ])
+            ->assertJsonMissing([
+                'name' => 'Gaming Monitor',
+            ])
+            ->assertJsonMissing([
+                'name' => 'Office Laptop',
+            ]);
+    }
+
 
     private function createTenantToken(string $tenantId): string
     {

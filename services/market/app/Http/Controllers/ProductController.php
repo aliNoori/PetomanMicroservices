@@ -207,7 +207,7 @@ class ProductController extends Controller
         /** @var TenantContext $tenant */
         $tenant = $request->attributes->get('tenant');
 
-        $product = $this->productService->update(
+        $result = $this->productService->updateWithImage(
             tenant: $tenant,
             productId: $productId,
             data: $request->validated(),
@@ -219,7 +219,11 @@ class ProductController extends Controller
             'data' => [
                 'tenant_id' => $tenant->tenantId,
 
-                'product' => new ProductResource($product),
+                'product' => new ProductResource(
+                    $result['product'],
+                ),
+
+                'previous_image_key' => $result['previous_image_key'],
             ],
         ]);
     }

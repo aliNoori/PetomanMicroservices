@@ -9,6 +9,12 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 
+import { GatewayAuthMode, GatewayTarget } from '../routing/gateway-route.types';
+
+import { GatewayDownstreamAuthService } from '../../../common/authentication/gateway-downstream-auth.service';
+
+import { ProductImageUrlEnricherService } from './product-image-url-enricher.service';
+
 import { ConfigService } from '@nestjs/config';
 
 import { HttpService } from '@nestjs/axios';
@@ -98,6 +104,8 @@ export class AggregationService {
     private readonly tenantResolverService: TenantResolverService,
     private readonly internalJwtService: InternalJwtService,
     private readonly configurationService: ConfigurationService,
+    private readonly gatewayDownstreamAuthService: GatewayDownstreamAuthService,
+    private readonly productImageUrlEnricherService: ProductImageUrlEnricherService,
   ) {}
 
   /**
@@ -339,7 +347,31 @@ export class AggregationService {
        * Return the downstream payload without
        * leaking the internal authentication details.
        */
-      return productsResponse.data.data;
+      /**
+       * Create a tenant-scoped Auth token for signing product image URLs.
+       *
+       * This token uses the Auth audience, not the Market audience.
+       */
+      const authAuthorization =
+        this.gatewayDownstreamAuthService.createTenantServiceAuthorizationHeader(
+          GatewayTarget.AUTH,
+          tenant.tenantId,
+        );
+
+      /**
+       * Enrich product records with signed image URLs.
+       *
+       * The downstream Market response contains the products
+       * inside its data property, so wrap it for the enricher.
+       */
+      const enrichedResponse = await this.productImageUrlEnricherService.enrich(
+        {
+          data: productsResponse.data.data,
+        },
+        authAuthorization,
+      );
+
+      return enrichedResponse.data;
     } catch (error: unknown) {
       if (error instanceof HttpException) {
         throw error;
@@ -351,7 +383,7 @@ export class AggregationService {
     }
   }
 
-    private async aggregateMarketHomeProducts(
+  private async aggregateMarketHomeProducts(
     context: AggregationContext,
   ): Promise<unknown> {
     try {
@@ -407,10 +439,33 @@ export class AggregationService {
         ),
       );
 
+      /**
+       * Create a GLOBAL Auth-audience token for signing product images.
+       *
+       * Auth independently validates image ownership against
+       * its active tenant records.
+       */
+      const authAuthorization =
+        this.gatewayDownstreamAuthService.createAuthorizationHeader(
+          GatewayTarget.AUTH,
+          GatewayAuthMode.PUBLIC,
+          context.request,
+        );
+
+      /**
+       * Enrich products while preserving the downstream payload.
+       */
+      const enrichedResponse = await this.productImageUrlEnricherService.enrich(
+        {
+          data: productsResponse.data.data,
+        },
+        authAuthorization,
+      );
+
       return new ApiResponsePayload(
         {
           tenants,
-          ...productsResponse.data.data,
+          ...enrichedResponse.data,
         },
         {
           pagination: productsResponse.data.meta?.pagination ?? null,

@@ -1,6 +1,7 @@
-export enum GatewayRouteType {
+﻿export enum GatewayRouteType {
   PROXY = 'PROXY',
   AGGREGATION = 'AGGREGATION',
+  ORCHESTRATION = 'ORCHESTRATION',
 }
 
 /**
@@ -34,6 +35,12 @@ export enum GatewayTenantResolution {
  * Base properties shared by every Gateway route.
  */
 interface GatewayRouteBase {
+  /**
+   * Service whose configured prefix is applied to this public route.
+   *
+   * This is independent of the route execution type.
+   */
+  servicePrefixTarget?: GatewayTarget;
   /**
    * HTTP method accepted by the Gateway.
    */
@@ -130,9 +137,22 @@ export interface GatewayAggregationRoute extends GatewayRouteBase {
 }
 
 /**
+ * Orchestration route.
+ */
+export interface GatewayOrchestrationRoute extends GatewayRouteBase {
+  type: GatewayRouteType.ORCHESTRATION;
+
+  /**
+   * Orchestration operation identifier.
+   */
+  handler: string;
+}
+
+/**
  * Central Gateway Route definition.
  */
-export type GatewayRoute = GatewayProxyRoute | GatewayAggregationRoute;
+export type GatewayRoute =
+  GatewayProxyRoute | GatewayAggregationRoute | GatewayOrchestrationRoute;
 
 /**
  * Result of matching an incoming request against

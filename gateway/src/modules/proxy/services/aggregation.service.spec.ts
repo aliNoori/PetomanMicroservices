@@ -9,6 +9,8 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
 import { of, throwError } from 'rxjs';
+import { GatewayDownstreamAuthService } from '../../../common/authentication/gateway-downstream-auth.service';
+import { ProductImageUrlEnricherService } from './product-image-url-enricher.service';
 
 import { InternalJwtService } from '@petoman/security';
 
@@ -19,6 +21,7 @@ import { AggregationContext, AggregationService } from './aggregation.service';
 import { TenantResolverService } from './tenant-resolver.service';
 import { ConfigurationService } from '../../../config/configuration.service';
 import { ApiResponsePayload } from '../../../common/types/api-response-payload.type';
+import { GatewayAuthMode, GatewayTarget } from '../routing/gateway-route.types';
 
 describe('AggregationService', () => {
   const marketConfig = {
@@ -80,6 +83,15 @@ describe('AggregationService', () => {
     internalJwt: typeof internalJwtConfig;
   };
 
+  let gatewayDownstreamAuthService: {
+    createTenantServiceAuthorizationHeader: jest.Mock;
+    createAuthorizationHeader: jest.Mock;
+  };
+
+  let productImageUrlEnricherService: {
+    enrich: jest.Mock;
+  };
+
   const createContext = (query: Record<string, unknown>): AggregationContext =>
     ({
       request: {} as AggregationContext['request'],
@@ -128,12 +140,30 @@ describe('AggregationService', () => {
       internalJwt: internalJwtConfig,
     };
 
+    gatewayDownstreamAuthService = {
+      createTenantServiceAuthorizationHeader: jest
+        .fn()
+        .mockReturnValue('Bearer auth-tenant-token'),
+
+      createAuthorizationHeader: jest
+        .fn()
+        .mockReturnValue('Bearer auth-global-token'),
+    };
+
+    productImageUrlEnricherService = {
+      enrich: jest
+        .fn()
+        .mockImplementation(async <T>(response: T): Promise<T> => response),
+    };
+
     service = new AggregationService(
       httpService as unknown as HttpService,
       configService as unknown as ConfigService,
       tenantResolverService as unknown as TenantResolverService,
       internalJwtService as unknown as InternalJwtService,
       configurationService as unknown as ConfigurationService,
+      gatewayDownstreamAuthService as unknown as GatewayDownstreamAuthService,
+      productImageUrlEnricherService as unknown as ProductImageUrlEnricherService,
     );
   });
 
@@ -192,6 +222,17 @@ describe('AggregationService', () => {
       );
 
       expect(result).toEqual(productsPayload);
+
+      expect(
+        gatewayDownstreamAuthService.createTenantServiceAuthorizationHeader,
+      ).toHaveBeenCalledWith(GatewayTarget.AUTH, tenant.tenantId);
+
+      expect(productImageUrlEnricherService.enrich).toHaveBeenCalledWith(
+        {
+          data: productsPayload,
+        },
+        'Bearer auth-tenant-token',
+      );
     });
 
     it('should reject a tenant that is not active', async () => {
@@ -377,6 +418,21 @@ describe('AggregationService', () => {
             'Content-Type': 'application/json',
           },
         },
+      );
+
+      expect(
+        gatewayDownstreamAuthService.createAuthorizationHeader,
+      ).toHaveBeenCalledWith(
+        GatewayTarget.AUTH,
+        GatewayAuthMode.PUBLIC,
+        expect.any(Object),
+      );
+
+      expect(productImageUrlEnricherService.enrich).toHaveBeenCalledWith(
+        {
+          data: homeProductsPayload.data,
+        },
+        'Bearer auth-global-token',
       );
 
       expect(result).toEqual(

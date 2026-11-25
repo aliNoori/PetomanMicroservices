@@ -174,27 +174,28 @@ export class GatewayRouteRegistry {
    *
    * /api/orders
    */
+
   private resolveRoute(route: GatewayRoute): GatewayRoute {
-    if (route.type !== GatewayRouteType.PROXY) {
+    if (route.type === GatewayRouteType.PROXY && !route.applyServicePrefix) {
       return route;
     }
 
-    if (!route.target) {
-      throw new Error(`Proxy route "${route.path}" does not define a target.`);
+    const target =
+      route.type === GatewayRouteType.PROXY
+        ? route.target
+        : route.servicePrefixTarget;
+
+    if (!target) {
+      return route;
     }
 
-    const service = this.getServiceConfig(route.target);
+    const service = this.getServiceConfig(target);
 
     return {
       ...route,
-
-      path:
-        route.applyServicePrefix === false
-          ? this.normalizePath(route.path)
-          : this.joinPaths(service.prefix, route.path),
+      path: this.joinPaths(service.prefix, route.path),
     };
   }
-
   /**
    * Resolve ServiceConfig from GatewayTarget.
    */

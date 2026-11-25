@@ -52,6 +52,12 @@ export interface ProxyBinaryResponse {
   };
 }
 
+export interface ProxyJsonResponse {
+  readonly type: 'json';
+  readonly data: unknown;
+  readonly status: number;
+}
+
 @Injectable()
 export class ProxyService {
   constructor(
@@ -96,9 +102,10 @@ export class ProxyService {
       );
 
       if (isBinary) {
+        const binaryData = Buffer.from(response.data);
         return {
           type: 'binary',
-          data: Buffer.from(response.data),
+          data: binaryData,
           status: response.status,
           headers: {
             contentType: response.headers['content-type']?.toString(),
@@ -111,12 +118,13 @@ export class ProxyService {
       }
 
       // Preserve the existing JSON response contract.
-      return response.data;
+      return {
+        type: 'json',
+        data: response.data,
+        status: response.status,
+      } satisfies ProxyJsonResponse;
     } catch (error: unknown) {
-      // console.error(
-      //   '[ProxyService] Downstream error:',
-      //   error,
-      // );
+      console.error('[ProxyService] Downstream error:', error);
 
       // ========================================================
       // 1. Timeout

@@ -6,7 +6,6 @@ import {
   GatewayAuthMode,
   GatewayRouteType,
   GatewayTarget,
-  GatewayTenantResolution,
 } from '../gateway-route.types';
 
 describe('GatewayRouteRegistry', () => {
@@ -59,14 +58,11 @@ describe('GatewayRouteRegistry', () => {
 
   function isMarketPublicProductsRoute(
     route: ReturnType<GatewayRouteRegistry['getAll']>[number],
-  ): route is Extract<
-    ReturnType<GatewayRouteRegistry['getAll']>[number],
-    { type: GatewayRouteType.PROXY }
-  > {
+  ): boolean {
     return (
-      route.type === GatewayRouteType.PROXY &&
-      route.target === GatewayTarget.MARKET &&
-      route.downstreamPath === '/api/public/stores/:storeSlug/products'
+      route.type === GatewayRouteType.ORCHESTRATION &&
+      route.servicePrefixTarget === GatewayTarget.MARKET &&
+      route.handler === 'market.products.public.list'
     );
   }
 
@@ -96,11 +92,10 @@ describe('GatewayRouteRegistry', () => {
       });
 
       expect(result?.route).toMatchObject({
-        type: GatewayRouteType.PROXY,
-        target: GatewayTarget.MARKET,
+        type: GatewayRouteType.ORCHESTRATION,
+        handler: 'market.products.public.list',
+        servicePrefixTarget: GatewayTarget.MARKET,
         auth: GatewayAuthMode.PUBLIC,
-        tenantResolution: GatewayTenantResolution.STORE_SLUG,
-        downstreamPath: '/api/public/stores/:storeSlug/products',
       });
     });
 
@@ -163,12 +158,16 @@ describe('GatewayRouteRegistry', () => {
       );
     });
 
-    it('should not modify the declared downstream path', () => {
+    it('should preserve the orchestration handler and service prefix target', () => {
       const marketRoute = registry.getAll().find(isMarketPublicProductsRoute);
 
-      expect(marketRoute?.downstreamPath).toBe(
-        '/api/public/stores/:storeSlug/products',
-      );
+      expect(marketRoute).toBeDefined();
+
+      expect(marketRoute).toMatchObject({
+        type: GatewayRouteType.ORCHESTRATION,
+        handler: 'market.products.public.list',
+        servicePrefixTarget: GatewayTarget.MARKET,
+      });
     });
   });
 });

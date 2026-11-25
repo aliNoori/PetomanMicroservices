@@ -1,10 +1,14 @@
-import { All, Controller, Req, Res } from '@nestjs/common';
+import { All, Controller, Req, Res ,UseInterceptors } from '@nestjs/common';
 
 import type { Response } from 'express';
 import type { AuthenticatedRequest } from '@petoman/security';
+import { ProductImageUploadInterceptor } from '../interceptors/product-image-upload.interceptor';
 
 import { GatewayDispatcherService } from '../services/gateway-dispatcher.service';
-import type { ProxyBinaryResponse } from '../services/proxy.service';
+import type {
+  ProxyBinaryResponse,
+  ProxyJsonResponse,
+} from '../services/proxy.service';
 
 /**
  * Main API Gateway controller.
@@ -18,6 +22,7 @@ export class ProxyController {
   /**
    * Central entry point for all API Gateway requests.
    */
+  @UseInterceptors(ProductImageUploadInterceptor)
   @All('{*path}')
   async handle(
     @Req() request: AuthenticatedRequest,
@@ -51,6 +56,11 @@ export class ProxyController {
       return;
     }
 
+    if (this.isJsonResponse(result)) {
+      response.status(result.status);
+      return result.data;
+    }
+
     return result;
   }
 
@@ -62,6 +72,18 @@ export class ProxyController {
       value.type === 'binary' &&
       'data' in value &&
       Buffer.isBuffer(value.data)
+    );
+  }
+
+  private isJsonResponse(value: unknown): value is ProxyJsonResponse {
+    return (
+      typeof value === 'object' &&
+      value !== null &&
+      'type' in value &&
+      value.type === 'json' &&
+      'status' in value &&
+      typeof value.status === 'number' &&
+      'data' in value
     );
   }
 }

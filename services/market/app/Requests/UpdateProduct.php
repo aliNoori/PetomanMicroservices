@@ -19,6 +19,7 @@ class UpdateProduct extends FormRequest
             'price' => ['sometimes', 'integer', 'min:0'],
             'stock' => ['sometimes', 'integer', 'min:0'],
             'is_active' => ['sometimes', 'boolean'],
+            'image_key' => ['sometimes', 'string', 'max:512'],
         ];
     }
 }

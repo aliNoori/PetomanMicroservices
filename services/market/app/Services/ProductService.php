@@ -95,6 +95,7 @@ class ProductService
                     'price',
                     'stock',
                     'is_active',
+                    'image_key',
                     'created_at',
                     'updated_at',
                 ],
@@ -180,14 +181,12 @@ class ProductService
             ->where('is_active', true);
 
         if ($search !== null && $search !== '') {
-            $query->where(function ($query) use ($search) {
+            $searchPattern = '%' . mb_strtolower($search) . '%';
+
+            $query->where(function ($query) use ($searchPattern) {
                 $query
-                    ->where('name', 'ILIKE', "%{$search}%")
-                    ->orWhere(
-                        'description',
-                        'ILIKE',
-                        "%{$search}%",
-                    );
+                    ->whereRaw('LOWER(name) LIKE ?', [$searchPattern])
+                    ->orWhereRaw('LOWER(description) LIKE ?', [$searchPattern]);
             });
         }
 
@@ -211,6 +210,7 @@ class ProductService
                     'price',
                     'stock',
                     'is_active',
+                    'image_key',
                     'created_at',
                     'updated_at',
                 ],
@@ -279,6 +279,7 @@ class ProductService
                     'price',
                     'stock',
                     'is_active',
+                    'image_key',
                     'created_at',
                     'updated_at',
                 ],
@@ -360,6 +361,7 @@ class ProductService
             'price' => $data['price'],
             'stock' => $data['stock'] ?? 0,
             'is_active' => $data['is_active'] ?? true,
+            'image_key' => $data['image_key'] ?? null,
         ]);
 
         $this->productCache->forgetTenant(
@@ -412,6 +414,64 @@ class ProductService
         );
 
         return $product->fresh();
+    }
+
+    /**
+     * Update a product and retain its previous image key
+     * for the gateway's post-update cleanup workflow.
+     *
+     * @return array{
+     *     product: Product,
+     *     previous_image_key: ?string
+     * }
+     */
+    public function updateWithImage(
+        TenantContext $tenant,
+        int $productId,
+        array $data,
+    ): array {
+        $tenantId = $tenant->tenantId;
+
+        $result = \Illuminate\Support\Facades\DB::transaction(
+            function () use ($tenantId, $productId, $data): array {
+                $product = Product::query()
+                    ->where('tenant_id', $tenantId)
+                    ->whereKey($productId)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                $previousImageKey = $product->image_key;
+
+                $product->fill([
+                    'name' => $data['name'] ?? $product->name,
+
+                    'description' => array_key_exists('description', $data)
+                        ? $data['description']
+                        : $product->description,
+
+                    'price' => $data['price'] ?? $product->price,
+
+                    'stock' => $data['stock'] ?? $product->stock,
+
+                    'is_active' => $data['is_active'] ?? $product->is_active,
+
+                    'image_key' => array_key_exists('image_key', $data)
+                        ? $data['image_key']
+                        : $product->image_key,
+                ]);
+
+                $product->save();
+
+                return [
+                    'product' => $product->fresh(),
+                    'previous_image_key' => $previousImageKey,
+                ];
+            },
+        );
+
+        $this->productCache->forgetTenant($tenantId);
+
+        return $result;
     }
 
     // ============================================================

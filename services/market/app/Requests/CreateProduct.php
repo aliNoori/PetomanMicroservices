@@ -19,6 +19,7 @@ class CreateProduct extends FormRequest
             'price' => ['required', 'integer', 'min:0'],
             'stock' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
+            'image_key' => ['sometimes', 'string', 'max:512'],
         ];
     }
 }
